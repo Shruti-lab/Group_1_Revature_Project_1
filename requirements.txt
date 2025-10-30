@@ -3,6 +3,7 @@ annotated-types==0.7.0
 bcrypt==5.0.0
 blinker==1.9.0
 click==8.3.0
+colorama==0.4.6
 dnspython==2.8.0
 email-validator==2.3.0
 Flask==3.1.2
@@ -10,6 +11,7 @@ Flask-Bcrypt==1.0.1
 Flask-JWT-Extended==4.7.1
 Flask-Migrate==4.1.0
 Flask-SQLAlchemy==3.1.1
+greenlet==3.2.4
 idna==3.11
 itsdangerous==2.2.0
 Jinja2==3.1.6
