@@ -1,12 +1,31 @@
 from flask import Flask
-from flask import Blueprint
+from flask_sqlalchemy import SQLAlchemy
+from flask_bcrypt import Bcrypt
+from flask_migrate import Migrate
+from flask_jwt_extended import JWTManager
+from app.config import Config
 
-def initialize_app():
+db = SQLAlchemy()
+bcrypt = Bcrypt()
+migrate = Migrate()
+jwt = JWTManager()
+
+def create_app():
+
     app = Flask(__name__)
+    ## loading the config file
+    app.config.from_object(Config)
 
-    # Initialize database
+    ## initializing the plugins
+    db.init_app(app)
+    bcrypt.init_app(app)
+    migrate.init_app(app, db)
+    jwt.init_app(app)
 
-    # Register Blueprints
-    
+    from app.models import User, Task  # Ensure models are imported for migrations
 
-    pass 
+    ## importing and registering the blueprints
+    from app.routes import register_routes
+    register_routes(app)
+
+    return app
