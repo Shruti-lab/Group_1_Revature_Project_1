@@ -16,14 +16,86 @@ task_bp = Blueprint("task_bp",__name__)
 @task_bp.route('/',methods=['GET'])
 @jwt_required()
 def get_tasks():
-   return "Got all task!"
+	pass
 
 
 # Get one task of the user
 @task_bp.route('/<int:task_id>',methods=['GET'])
 @jwt_required()
 def get_one_task(task_id):
-   pass
+    try:
+        user_id = get_jwt_identity()
+        task = Task.query.filter_by(id=task_id, user_id=user_id).first()
+
+        if not task:
+            return error_response('Task not found', 404)
+
+        return success_response(
+            data=task.to_dict(),
+            message="Task fetched successfully"
+        )
+
+    except Exception as e:
+        return error_response(f"Failed to fetch task: {str(e)}", 500)
+    
+# Get tasks by status for the user
+@task_bp.route('/status/<string:status>', methods=['GET'])
+@jwt_required()
+def get_tasks_by_status(status):
+    try:
+        user_id = get_jwt_identity()
+
+        # Normalize status (optional, depends on your data format)
+        status = status.capitalize()
+
+        # Fetch all tasks with this status for the logged-in user
+        tasks = Task.query.filter_by(user_id=user_id, status=status).all()
+
+        if not tasks:
+            return success_response(
+                data=[],
+                message=f"No tasks found with status '{status}'"
+            )
+
+        task_list = [task.to_dict() for task in tasks]
+
+        return success_response(
+            data=task_list,
+            message=f"Tasks with status '{status}' fetched successfully"
+        )
+
+    except Exception as e:
+        return error_response(f"Failed to fetch tasks by status: {str(e)}", 500)
+
+
+# Get tasks by priority for the user
+@task_bp.route('/priority/<string:priority>', methods=['GET'])
+@jwt_required()
+def get_tasks_by_priority(priority):
+    try:
+        user_id = get_jwt_identity()
+
+        # Normalize priority (optional, depending on your model values)
+        priority = priority.capitalize()
+
+        # Fetch tasks matching the given priority for this user
+        tasks = Task.query.filter_by(user_id=user_id, priority=priority).all()
+
+        if not tasks:
+            return success_response(
+                data=[],
+                message=f"No tasks found with priority '{priority}'"
+            )
+
+        task_list = [task.to_dict() for task in tasks]
+
+        return success_response(
+            data=task_list,
+            message=f"Tasks with priority '{priority}' fetched successfully"
+        )
+
+    except Exception as e:
+        return error_response(f"Failed to fetch tasks by priority: {str(e)}", 500)
 
 
 # Create a new task
