@@ -4,6 +4,7 @@ from app import db,bcrypt
 from app.models import User
 from app.schema.auth_schema import SignUpSchema,LoginSchema
 from pydantic import ValidationError
+from app.utils.jwtUtil import generate_jwt
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -38,7 +39,7 @@ def login():
     if not user or not user.check_password(validated_data.password):
         return jsonify({"message": "Invalid email or password"}), 401
 
-    access_token = create_access_token(identity=user.user_id)
+    access_token = generate_jwt(user.user_id)
     return jsonify({
         "message": "Login successful",
         "access_token": access_token,
