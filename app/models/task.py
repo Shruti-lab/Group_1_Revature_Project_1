@@ -1,6 +1,6 @@
 from app import db 
 import enum
-from datetime import datetime
+from datetime import datetime,date
 from datetime import timezone
 
 class PriorityEnum(enum.Enum):
@@ -19,8 +19,8 @@ class Task(db.Model):
     task_id = db.Column(db.Integer, primary_key=True, nullable=False, autoincrement=True)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    start_date = db.Column(db.DateTime, default=datetime.now(timezone.utc))
-    due_date = db.Column(db.DateTime, nullable=True)
+    start_date = db.Column(db.Date, default=datetime.now(timezone.utc))
+    due_date = db.Column(db.Date, nullable=True)
     priority = db.Column(db.Enum(PriorityEnum), default=PriorityEnum.LOW)
     status = db.Column(db.Enum(StatusEnum), default=StatusEnum.PENDING)
 
@@ -30,8 +30,23 @@ class Task(db.Model):
     def is_overdue(self):
         """Check if task is overdue"""
         if self.due_date and self.status not in [StatusEnum.COMPLETED.value, StatusEnum.CANCELLED.value]:
-            return datetime.utcnow() > self.due_date
+            return date.today() > self.due_date
         return False
+    
+
+    def to_dict(self):
+        """Serialize task to dictionary"""
+        return {
+            'task_id': self.task_id,
+            'title': self.title,
+            'description': self.description,
+            'start_date': self.start_date.isoformat() if self.start_date else None,
+            'due_date': self.due_date.isoformat() if self.due_date else None,
+            'priority': self.priority.value,
+            'status': self.status.value,
+            'user_id': self.user_id,
+            'is_overdue': self.is_overdue()
+        }
     
 
 
