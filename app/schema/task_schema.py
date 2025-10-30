@@ -1,6 +1,6 @@
 from pydantic import BaseModel, validator , Field
 from typing import Optional
-from datetime import datetime
+from datetime import date
 from app.models.task import PriorityEnum, StatusEnum
 
 class TaskCreateSchema(BaseModel):
@@ -8,8 +8,8 @@ class TaskCreateSchema(BaseModel):
     description: Optional[str] = None
     status: str = StatusEnum.PENDING.value
     priority: str = PriorityEnum.LOW.value
-    start_date: datetime
-    due_date: Optional[datetime] = None
+    start_date: Optional[date] = None
+    due_date: Optional[date] = None
 
 
     @validator('status')
@@ -26,7 +26,7 @@ class TaskCreateSchema(BaseModel):
     
     @validator('due_date')
     def validate_due_date(cls, value):
-        if value and value < datetime.now():
+        if value and value < date.today():
             raise ValueError('Due date cannot be in the past.')
         return value
 
@@ -47,7 +47,7 @@ class TaskUpdateSchema(BaseModel):
     description: Optional[str] = None
     status: Optional[str] = None
     priority: Optional[str] = None
-    due_date: Optional[datetime] = None
+    due_date: Optional[date] = None
     
     @validator('status')
     def validate_status(cls, v):
@@ -68,8 +68,8 @@ class TaskReadSchema(BaseModel):
     description: Optional[str] = None
     status: str = StatusEnum.PENDING.value
     priority: str = PriorityEnum.LOW.value
-    start_date: datetime
-    due_date: Optional[datetime] = None
+    start_date: date
+    due_date: Optional[date] = None
 
     
 
