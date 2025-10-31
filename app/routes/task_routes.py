@@ -1,4 +1,5 @@
-from flask import Blueprint,request, jsonify
+from app.models.task import StatusEnum, PriorityEnum
+from flask import Blueprint,request
 from app.models import Task
 from app import db
 from app.schema.task_schema import TaskCreateSchema, TaskReadSchema, TaskUpdateSchema
@@ -8,7 +9,6 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 task_bp = Blueprint("task_bp",__name__)
 
 
-# Base URL:- user/<userid>/tasks
 # Base url:- user/tasks
 
 
@@ -16,14 +16,105 @@ task_bp = Blueprint("task_bp",__name__)
 @task_bp.route('/',methods=['GET'])
 @jwt_required()
 def get_tasks():
-   return "Got all task!"
+    try:
+        user_id = get_jwt_identity()
+
+        # Get query parameters
+        status = request.args.get('status', type=str)
+        priority = request.args.get('priority', type=str)
+        search = request.args.get('search', type=str)
+        page = request.args.get('page', 1, type=int)
+        per_page = min(request.args.get('per_page', 5, type=int), 100)
+
+        tasks = Task.query.filter_by(user_id=user_id)
+
+        # Applying the task status filter
+        if status:
+            status = status.upper()
+            if status not in [s.value for s in StatusEnum]:
+                return error_response(
+                    f'Invalid status. Must be one of: {[s.value for s in StatusEnum]}', 
+                    400
+                )
+            tasks = tasks.filter_by(status=status)
+
+        # Applying priority filter
+        if priority:
+            priority = priority.upper()
+            if priority not in [p.value for p in PriorityEnum]:
+                return error_response(
+                    f'Invalid priority. Must be one of: {[p.value for p in PriorityEnum]}', 
+                    400
+                )
+            tasks = tasks.filter_by(priority=priority)
+
+        # Apply search filter by title or description
+        if search:
+            tasks = tasks.filter(
+                db.or_(
+                    db.or_(
+                    Task.title.ilike(f'%{search}%'),
+                    Task.description.ilike(f'%{search}%')
+                )
+                )
+            )
+
+        # getting total tasks count
+        total = tasks.count()
+
+        # Get paginated results
+        tasks = tasks.order_by(Task.start_date.desc()).paginate(
+            page=page, 
+            per_page=per_page, 
+            error_out=False
+        )
+
+        # Calculate pagination metadata
+        total_pages = (total + per_page - 1) // per_page
+        # OR total_pages = Math.ceil(total//per_page)
+        
+        return success_response(
+            data={
+                'tasks': [task.to_dict() for task in tasks.items],
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total_items': total,
+                    'total_pages': total_pages,
+                    'has_next': page < total_pages,
+                    'has_prev': page > 1
+                }
+            },
+            message='Tasks retrieved successfully'
+        )
+
+            
+    except Exception as e:
+        return error_response(f'Failed to retrieve tasks: {str(e)}', 500)
+
+
+       
 
 
 # Get one task of the user
 @task_bp.route('/<int:task_id>',methods=['GET'])
 @jwt_required()
 def get_one_task(task_id):
-   pass
+    try:
+        user_id = get_jwt_identity()
+        task = Task.query.filter_by(task_id=task_id, user_id=user_id).first()
+
+        if not task:
+            return error_response('Task not found', 404)
+
+        return success_response(
+            data=task.to_dict(),
+            message="Task fetched successfully"
+        )
+
+    except Exception as e:
+        return error_response(f"Failed to fetch task: {str(e)}", 500)
+    
 
 
 # Create a new task
@@ -113,7 +204,7 @@ def update_task(task_id):
 def delete_task(task_id):
    try:
         user_id = get_jwt_identity()
-        task = Task.query.filter_by(id=task_id, user_id=user_id).first()
+        task = Task.query.filter_by(task_id=task_id, user_id=user_id).first()
         print(task)
         
         if not task:
