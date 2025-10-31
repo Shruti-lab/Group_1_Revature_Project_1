@@ -221,3 +221,30 @@ def delete_task(task_id):
         db.session.rollback()
         return error_response(f'Failed to delete task: {str(e)}', 500)
 
+
+# Delete multiple tasks of the user
+@task_bp.route('/bulk_delete', methods=['DELETE'])
+@jwt_required()
+def bulk_delete():
+    try:
+        user_id = get_jwt_identity()
+        ids_str = request.args.get('task_ids')
+
+        if not ids_str:
+            return error_response("task_ids query parameter required", 400)
+
+        task_ids = [int(i) for i in ids_str.split(',')]
+        tasks = Task.query.filter(Task.task_id.in_(task_ids), Task.user_id == user_id).all()
+
+        if not tasks:
+            return error_response("No valid tasks found to delete", 404)
+
+        for task in tasks:
+            db.session.delete(task)
+        db.session.commit()
+
+        return success_response(message=f"Deleted {len(tasks)} tasks")
+
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f"Failed to delete tasks: {str(e)}", 500)
