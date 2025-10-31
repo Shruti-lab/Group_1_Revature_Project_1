@@ -277,5 +277,34 @@ def delete(task_id):
     except:
         click.echo(response.text)
     
+# BULK DELETE TASKS
+
+@cli.command("bulk-delete")
+@click.option("--ids", multiple=True, required=True, type=int, help="Task IDs to delete (e.g. --ids 1 2 3)")
+def bulk_delete(ids):
+    """Delete multiple tasks by IDs"""
+    token = load_token()
+    if not token:
+        click.echo("Login required.")
+        return
+
+    # Convert multiple IDs to comma-separated string
+    ids_str = ",".join(map(str, ids))
+    url = f"{API_URL}/user/tasks/bulk_delete?task_ids={ids_str}"
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Confirm before deleting
+    confirm = click.confirm(f"Are you sure you want to delete tasks {ids_str}?", default=False)
+    if not confirm:
+        click.echo("Cancelled.")
+        return
+
+    response = requests.delete(url, headers=headers)
+
+    try:
+        click.echo(json.dumps(response.json(), indent=2))
+    except Exception:
+        click.echo(response.text)
+
 if __name__ == "__main__":
     cli()
