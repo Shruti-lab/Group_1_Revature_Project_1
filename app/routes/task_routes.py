@@ -6,15 +6,18 @@ from app.schema.task_schema import TaskCreateSchema, TaskReadSchema, TaskUpdateS
 from app.utils.response import success_response, error_response
 from pydantic import ValidationError
 from flask_jwt_extended import get_jwt_identity, jwt_required
+from datetime import date, datetime
+from sqlalchemy import func
+
 task_bp = Blueprint("task_bp",__name__)
 
 
 # Base url:- user/tasks
 
-
+#**************************************************************************************************
 # Get all tasks for the user
 @task_bp.route('/',methods=['GET'])
-@jwt_required()
+@jwt_required()     #Protects the route — user must be authenticated.
 def get_tasks():
     try:
         user_id = get_jwt_identity()
@@ -95,9 +98,32 @@ def get_tasks():
 
        
 
+        # --- Pagination ---
+        paginated = query.order_by(Task.due_date.asc()).paginate(page=page, per_page=per_page, error_out=False)
+        # Orders query results by due_date ascending (soonest due first)
+        # then uses SQLAlchemy/Flask-SQLAlchemy paginate to get a page object containing only the requested slice of results.
+        # error_out=False prevents 404 on out-of-range pages — it returns an empty list instead.
+        tasks = [task.to_dict() for task in paginated.items]
+        # Serializes each Task model instance into a dictionary using your model's to_dict() method (so JSON is safe to return).
 
-# Get one task of the user
-@task_bp.route('/<int:task_id>',methods=['GET'])
+        return success_response(
+            data={
+                "tasks": tasks,
+                "page": page,
+                "total_pages": paginated.pages,
+                "total_tasks": paginated.total
+            },
+            message="Tasks fetched successfully"
+        )
+
+    except Exception as e:
+        return error_response(f"Failed to fetch tasks: {str(e)}", 500)
+
+
+#**************************************************************************************************
+
+# GET /overdue - tasks that are overdue (and not completed/cancelled)
+@task_bp.route('/overdue', methods=['GET'])
 @jwt_required()
 def get_one_task(task_id):
     try:
@@ -121,7 +147,7 @@ def get_one_task(task_id):
 @task_bp.route('/',methods=['POST'])
 @jwt_required()
 def create_task():
-   try:
+    try:
         # Validate request data
         data = TaskCreateSchema(**request.get_json())
         
@@ -145,9 +171,9 @@ def create_task():
             status_code=201
         )
 
-   except ValidationError as e:
-      return error_response(message=str(e), status_code=400)
-      
+    except ValidationError as e:
+        return error_response(message=str(e), status_code=400)
+
 
 
 
@@ -156,7 +182,7 @@ def create_task():
 @task_bp.route('/<int:task_id>',methods=['PUT'])
 @jwt_required()
 def update_task(task_id):
-   try:
+    try:
         user_id = get_jwt_identity()
         # Find task
         task = Task.query.filter_by(task_id=task_id, user_id=user_id).first()
@@ -188,21 +214,21 @@ def update_task(task_id):
             message='Task updated successfully'
         )
         
-   except ValidationError as e:
+    except ValidationError as e:
         return error_response('Validation failed', 400, errors=e.errors())
     
-   except Exception as e:
+    except Exception as e:
         db.session.rollback()
         return error_response(f'Failed to update task: {str(e)}', 500)
 
-   
+    
 
 
 # Delete one task of the user
 @task_bp.route('/<int:task_id>',methods=['DELETE'])
 @jwt_required()
 def delete_task(task_id):
-   try:
+    try:
         user_id = get_jwt_identity()
         task = Task.query.filter_by(task_id=task_id, user_id=user_id).first()
         print(task)
@@ -217,7 +243,7 @@ def delete_task(task_id):
             message='Task deleted successfully'
         )
         
-   except Exception as e:
+    except Exception as e:
         db.session.rollback()
         return error_response(f'Failed to delete task: {str(e)}', 500)
 
