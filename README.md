@@ -158,7 +158,7 @@ API will be available at:
 ```
 GET /tasks?status=COMPLETED
 GET /tasks?priority=LOW
-GET /tasks?status=PENDING?priority=HIGH
+GET /tasks?status=PENDING&priority=HIGH
 ```
 
 ---
