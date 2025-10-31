@@ -5,13 +5,16 @@ from app.schema.task_schema import TaskCreateSchema, TaskReadSchema, TaskUpdateS
 from app.utils.response import success_response, error_response
 from pydantic import ValidationError
 from flask_jwt_extended import get_jwt_identity, jwt_required
+from datetime import date, datetime
+from sqlalchemy import func
+
 task_bp = Blueprint("task_bp",__name__)
 
 
 # Base URL:- user/<userid>/tasks
 # Base url:- user/tasks
 
-
+#**************************************************************************************************
 # Get all tasks for the user
 @task_bp.route('/',methods=['GET'])
 @jwt_required()     #Protects the route — user must be authenticated.
@@ -67,30 +70,7 @@ def get_tasks():
         return error_response(f"Failed to fetch tasks: {str(e)}", 500)
 
 
-# Get one task of the user
-@task_bp.route('/<int:task_id>',methods=['GET'])
-@jwt_required()
-def get_one_task(task_id):
-    try:
-        user_id = get_jwt_identity()
-        task = Task.query.filter_by(task_id=task_id, user_id=user_id).first()
-
-        if not task:
-            return error_response("Task not found", 404)
-
-        return success_response(
-            data=task.to_dict(),
-            message="Task retrieved successfully"
-        )
-
-    except Exception as e:
-        return error_response(f"Failed to fetch task: {str(e)}", 500)
-    
-
-
 #**************************************************************************************************
-from datetime import date, datetime
-from sqlalchemy import func
 
 # GET /overdue - tasks that are overdue (and not completed/cancelled)
 @task_bp.route('/overdue', methods=['GET'])
@@ -113,6 +93,8 @@ def get_overdue_tasks():
         return error_response(f"Failed to fetch overdue tasks: {str(e)}", 500)
 
 
+#**************************************************************************************************
+
 # GET /today - tasks due today
 @task_bp.route('/today', methods=['GET'])
 @jwt_required()
@@ -130,6 +112,8 @@ def get_today_tasks():
     except Exception as e:
         return error_response(f"Failed to fetch today's tasks: {str(e)}", 500)
 
+
+#**************************************************************************************************
 
 # GET /stats - simple stats (counts by status + overdue count)
 @task_bp.route('/stats', methods=['GET'])
@@ -168,6 +152,8 @@ def get_task_stats():
         return error_response(f"Failed to fetch stats: {str(e)}", 500)
 
 
+#**************************************************************************************************
+
 # GET /recent - recent tasks created (optionally limit via ?limit=5)
 @task_bp.route('/recent', methods=['GET'])
 @jwt_required()
@@ -201,10 +187,12 @@ def get_recent_tasks():
         return error_response(f"Failed to fetch recent tasks: {str(e)}", 500)
 
 
+#**************************************************************************************************
+
 #UPCOMING TASK 
 # The purpose isn’t sorting — it’s filtering.
 # It deliberately excludes everything that’s already due or overdue.
-# @task_bp.route('/upcoming', methods=['GET'])
+@task_bp.route('/upcoming', methods=['GET'])
 @jwt_required()
 def get_upcoming_tasks():
     """
