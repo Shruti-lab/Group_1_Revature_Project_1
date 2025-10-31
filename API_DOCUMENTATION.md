@@ -2,15 +2,15 @@
 
 ## Table of Contents
 - [Overview](#overview)
-- [Base URL](#base-url)
+- [Application Base URL](#application-base-url)
 - [Authentication](#authentication)
-- [Response Format](#response-format)
+- [Response Formats](#response-formats)
 - [Error Codes](#error-codes)
 - [Endpoints](#endpoints)
-  - [Authentication](#authentication-endpoints)
-  - [User Management](#user-management-endpoints)
-  - [Task Management](#task-management-endpoints)
-
+  - [Authentication Endpoints](#authentication-endpoints)
+  - [User Management Endpoints](#user-management-endpoints)
+  - [Task Management Endpoints](#task-management-endpoints)
+    
 ---
 
 ## Overview
