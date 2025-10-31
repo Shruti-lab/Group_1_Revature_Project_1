@@ -13,6 +13,7 @@ task_bp = Blueprint("task_bp",__name__)
 
 
 # Base url:- user/tasks
+# Base url:- user/tasks
 
 #**************************************************************************************************
 # Get all tasks for the user
@@ -20,83 +21,33 @@ task_bp = Blueprint("task_bp",__name__)
 @jwt_required()     #Protects the route — user must be authenticated.
 def get_tasks():
     try:
-        user_id = get_jwt_identity()
+        user_id = get_jwt_identity()  #Retrieves the identity stored inside the JWT,get users task
 
-        # Get query parameters
+        # --- Filtering parameters ---
         status = request.args.get('status', type=str)
         priority = request.args.get('priority', type=str)
-        search = request.args.get('search', type=str)
-        page = request.args.get('page', 1, type=int)
-        per_page = min(request.args.get('per_page', 5, type=int), 100)
+        search = request.args.get('search', type=str)  # optional title search ,(used to search the title)
+        page = request.args.get('page', default=1, type=int)          #Reads page query param for pagination.
+        per_page = request.args.get('per_page', default=10, type=int)   #(items per page). Defaults to 10
 
-        tasks = Task.query.filter_by(user_id=user_id)
+        # --- Base query ---
+        query = Task.query.filter_by(user_id=user_id)   #selecting tasks that belong to this user_id.
 
-        # Applying the task status filter
+        # --- Apply filters ---
         if status:
-            status = status.upper()
-            if status not in [s.value for s in StatusEnum]:
-                return error_response(
-                    f'Invalid status. Must be one of: {[s.value for s in StatusEnum]}', 
-                    400
-                )
-            tasks = tasks.filter_by(status=status)
+            try:
+                query = query.filter(Task.status == StatusEnum(status.upper())) #filter tasks whose status equals that enum value, StatusEnum(status.upper()) — converts text like "completed" -> "COMPLETED" and into the Enum member.
+            except ValueError:
+                return error_response(f"Invalid status '{status}'.", 400)
 
-        # Applying priority filter
         if priority:
-            priority = priority.upper()
-            if priority not in [p.value for p in PriorityEnum]:
-                return error_response(
-                    f'Invalid priority. Must be one of: {[p.value for p in PriorityEnum]}', 
-                    400
-                )
-            tasks = tasks.filter_by(priority=priority)
+            try:
+                query = query.filter(Task.priority == PriorityEnum(priority.upper())) #same as above 
+            except ValueError:
+                return error_response(f"Invalid priority '{priority}'.", 400)
 
-        # Apply search filter by title or description
         if search:
-            tasks = tasks.filter(
-                db.or_(
-                    db.or_(
-                    Task.title.ilike(f'%{search}%'),
-                    Task.description.ilike(f'%{search}%')
-                )
-                )
-            )
-
-        # getting total tasks count
-        total = tasks.count()
-
-        # Get paginated results
-        tasks = tasks.order_by(Task.start_date.desc()).paginate(
-            page=page, 
-            per_page=per_page, 
-            error_out=False
-        )
-
-        # Calculate pagination metadata
-        total_pages = (total + per_page - 1) // per_page
-        # OR total_pages = Math.ceil(total//per_page)
-        
-        return success_response(
-            data={
-                'tasks': [task.to_dict() for task in tasks.items],
-                'pagination': {
-                    'page': page,
-                    'per_page': per_page,
-                    'total_items': total,
-                    'total_pages': total_pages,
-                    'has_next': page < total_pages,
-                    'has_prev': page > 1
-                }
-            },
-            message='Tasks retrieved successfully'
-        )
-
-            
-    except Exception as e:
-        return error_response(f'Failed to retrieve tasks: {str(e)}', 500)
-
-
-       
+            query = query.filter(Task.title.ilike(f"%{search}%")) #Adds a case-insensitive LIKE filter on title. This will return tasks whose title contains the search substring.
 
         # --- Pagination ---
         paginated = query.order_by(Task.due_date.asc()).paginate(page=page, per_page=per_page, error_out=False)
@@ -120,10 +71,12 @@ def get_tasks():
         return error_response(f"Failed to fetch tasks: {str(e)}", 500)
 
 
+
 #**************************************************************************************************
 
-# GET /overdue - tasks that are overdue (and not completed/cancelled)
-@task_bp.route('/overdue', methods=['GET'])
+
+# Get one task of the user
+@task_bp.route('/<int:task_id>',methods=['GET'])
 @jwt_required()
 def get_one_task(task_id):
     try:
@@ -140,7 +93,168 @@ def get_one_task(task_id):
 
     except Exception as e:
         return error_response(f"Failed to fetch task: {str(e)}", 500)
-    
+
+
+#**************************************************************************************************
+
+
+# GET /overdue - tasks that are overdue (and not completed/cancelled)
+@task_bp.route('/overdue', methods=['GET'])
+@jwt_required()
+def get_overdue_tasks():
+    try:
+        user_id = get_jwt_identity()
+        # Fetch tasks that belong to user, have a due_date before today,
+        # and are not COMPLETED or CANCELLED
+        overdue_tasks = Task.query.filter(
+            Task.user_id == user_id,
+            Task.due_date != None,             #must have a due date set.
+            Task.due_date < date.today(),      #due date is in the past.
+            Task.status.notin_([StatusEnum.COMPLETED, StatusEnum.CANCELLED])
+        ).order_by(Task.due_date.asc()).all()
+
+        data = [t.to_dict() for t in overdue_tasks]     #sort soonest-overdue first, fetch all results.
+        return success_response(data=data, message="Overdue tasks fetched")
+    except Exception as e:
+        return error_response(f"Failed to fetch overdue tasks: {str(e)}", 500)
+
+
+#**************************************************************************************************
+
+# GET /today - tasks due today
+@task_bp.route('/today', methods=['GET'])
+@jwt_required()
+def get_today_tasks():
+    try:
+        user_id = get_jwt_identity()
+        today = date.today()
+        today_tasks = Task.query.filter(
+            Task.user_id == user_id,
+            Task.due_date != None,
+            Task.due_date == date.today()
+        ).order_by(Task.due_date.asc()).all()
+
+        return success_response(data=[t.to_dict() for t in today_tasks], message="Today's tasks fetched")
+    except Exception as e:
+        return error_response(f"Failed to fetch today's tasks: {str(e)}", 500)
+
+
+#**************************************************************************************************
+
+# GET /stats - simple stats (counts by status + overdue count)
+@task_bp.route('/stats', methods=['GET'])
+@jwt_required()
+def get_task_stats():
+    try:
+        user_id = get_jwt_identity()
+        # Count tasks grouped by status
+        status_counts = db.session.query(
+            Task.status, func.count(Task.task_id)
+        ).filter_by(user_id=user_id).group_by(Task.status).all()   
+
+        # Build dict: { 'PENDING': 10, 'COMPLETED': 4, ... }
+        status_summary = {status.value 
+                            if hasattr(status, 'value') 
+                            else str(status): 
+                            count
+                        for status, count in status_counts}
+
+        # total overdue
+        overdue_count = Task.query.filter(
+            Task.user_id == user_id,
+            Task.due_date != None,
+            Task.due_date < date.today(),
+            Task.status.notin_([StatusEnum.COMPLETED, StatusEnum.CANCELLED])
+        ).count()
+
+        return success_response(
+            data={
+                "status_counts": status_summary,
+                "overdue_count": overdue_count
+            },
+            message="Task stats fetched"
+        )
+    except Exception as e:
+        return error_response(f"Failed to fetch stats: {str(e)}", 500)
+
+
+#**************************************************************************************************
+
+# GET /recent - recent tasks created (optionally limit via ?limit=5)
+@task_bp.route('/recent', methods=['GET'])
+@jwt_required()
+def get_recent_tasks():
+    """
+    Get the most recent tasks for the logged-in user.
+    Ordered by task_id DESC (newest first) and limited by ?limit=.
+    Example: /recent?limit=5
+    """
+    try:
+        user_id = get_jwt_identity()
+        
+        # Read 'limit' from query string, default to 5
+        limit = request.args.get('limit', default=5, type=int)
+
+        # Query user's tasks, order by descending task_id, and limit results
+        recent_tasks = (
+            Task.query
+            .filter_by(user_id=user_id)
+            .order_by(Task.task_id.desc())
+            .limit(limit)
+            .all()
+        )
+
+        # Convert to dictionaries for JSON response
+        data = [task.to_dict() for task in recent_tasks]
+
+        return success_response(data=data, message="Recent tasks fetched successfully")
+
+    except Exception as e:
+        return error_response(f"Failed to fetch recent tasks: {str(e)}", 500)
+
+
+#**************************************************************************************************
+
+#UPCOMING TASK 
+# The purpose isn’t sorting — it’s filtering.
+# It deliberately excludes everything that’s already due or overdue.
+@task_bp.route('/upcoming', methods=['GET'])
+@jwt_required()
+def get_upcoming_tasks():
+    """
+    Get all upcoming tasks (due after today) for the logged-in user.
+    Example: GET /user/tasks/upcoming
+    """
+    try:
+        user_id = get_jwt_identity()
+
+        # today's date
+        today = date.today()
+
+        # fetch tasks that are due after today
+        upcoming_tasks = (
+            Task.query
+            .filter(
+                Task.user_id == user_id,
+                Task.due_date != None,  # only consider tasks with a due date
+                Task.due_date > today   # due date is in the future
+            )
+            .order_by(Task.due_date.asc())  # sort earliest upcoming first
+            .all()
+        )
+
+        data = [task.to_dict() for task in upcoming_tasks]
+
+        return success_response(
+            data=data,
+            message="Upcoming tasks fetched successfully"
+        )
+
+    except Exception as e:
+        return error_response(f"Failed to fetch upcoming tasks: {str(e)}", 500)
+
+
+#**************************************************************************************************
 
 
 # Create a new task
