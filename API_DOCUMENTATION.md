@@ -686,7 +686,345 @@ GET [http://127.0.0.1:5000/user/tasks/7](http://127.0.0.1:5000/user/tasks/7)
 
 ---
 
-### 7. Create Task
+### 7. Get Overdue Tasks
+
+Retrieve all tasks whose due dates have already passed and are not marked as `COMPLETED` or `CANCELLED`.
+
+**Endpoint:** `GET http://127.0.0.1:5000/user/tasks/overdue`
+
+**Authentication Required:** Yes
+
+**Headers:**
+
+```
+Authorization: Bearer <access_token>
+```
+
+**Example Request:**
+```
+GET http://127.0.0.1:5000/user/tasks/overdue
+```
+
+
+**Success Response:** `200 OK`
+```json
+{
+    "success": true,
+    "message": "Overdue tasks retrieved successfully",
+    "data": {
+        "tasks": [
+            {
+                "task_id": 9,
+                "title": "Submit Expense Report",
+                "description": "Gather receipts and submit for approval",
+                "status": "PENDING",
+                "priority": "MEDIUM",
+                "start_date": "2025-09-20",
+                "due_date": "2025-10-15",
+                "is_overdue": true,
+                "user_id": 3
+            }
+        ]
+    }
+}
+```
+
+**Empty Response:** `200 OK`
+```json
+{
+    "success": true,
+    "message": "No overdue tasks found",
+    "data": {
+        "tasks": []
+    }
+}
+```
+**Error Response:** `404 Not Found`
+```json
+{
+    "success": false,
+    "error": "Failed to fetch overdue tasks: <error_message>",
+    "status_code": 500
+}
+```
+
+---
+
+
+### 8. Get Today’s Tasks
+
+Retrieve all tasks whose due dates are today and are not marked as `COMPLETED` or `CANCELLED`.
+
+**Endpoint:** `GET http://127.0.0.1:5000/user/tasks/today`
+
+**Authentication Required:** Yes
+
+**Headers:**
+
+```
+Authorization: Bearer <access_token>
+```
+
+**Example Request:**
+```
+GET http://127.0.0.1:5000/user/tasks/today
+```
+
+
+**Success Response:** `200 OK`
+```json
+{
+    "success": true,
+    "message": "Overdue tasks retrieved successfully",
+    "data": {
+        "tasks": [
+            {
+                "task_id": 9,
+                "title": "Submit Expense Report",
+                "description": "Gather receipts and submit for approval",
+                "status": "PENDING",
+                "priority": "MEDIUM",
+                "start_date": "2025-09-20",
+                "due_date": "2025-10-15",
+                "is_overdue": true,
+                "user_id": 3
+            }
+        ]
+    }
+}
+```
+
+**Empty Response:** `200 OK`
+```json
+{
+    "success": true,
+    "message": "No overdue tasks found",
+    "data": {
+        "tasks": []
+    }
+}
+```
+
+**Error Response:** `404 Not Found`
+```json
+    "success": false,
+    "error": "Failed to fetch today's tasks: <error_message>",
+    "status_code": 500
+```
+
+---
+
+
+### 9. Get Task Statistics
+
+Retrieve a summary of task statistics for the logged-in user, including counts of total, pending, completed, overdue, and cancelled tasks.
+
+**Endpoint:** `GET http://127.0.0.1:5000/user/tasks/stats`
+
+**Authentication Required:** Yes
+
+**Headers:**
+
+```
+Authorization: Bearer <access_token>
+```
+
+**Example Request:**
+```
+GET http://127.0.0.1:5000/user/tasks/stats
+```
+
+
+**Success Response:** `200 OK`
+```json
+{
+    "success": true,
+    "message": "Task statistics retrieved successfully",
+    "data": {
+        "total_tasks": 24,
+        "pending_tasks": 8,
+        "completed_tasks": 10,
+        "overdue_tasks": 3,
+        "cancelled_tasks": 3
+    }
+}
+```
+
+**Empty Response:** 200 `OK`
+```json
+{
+    "success": true,
+    "message": "No tasks available to calculate statistics",
+    "data": {}
+}
+```
+
+**Error Response:** `500 Internal Server Error`
+```json
+{
+    "success": false,
+    "error": "Failed to fetch stats: <error_message>",
+    "status_code": 500
+}
+```
+
+---
+
+
+### 10. Get Recent Tasks
+
+Retrieve the most recently created or updated tasks for the logged-in user.
+
+**Endpoint:** `GET http://127.0.0.1:5000/user/tasks/recent`
+
+**Authentication Required:** Yes
+
+**Headers:**
+
+```
+Authorization: Bearer <access_token>
+```
+
+**Example Request:**
+```
+GET http://127.0.0.1:5000/user/tasks/recent
+```
+
+
+**Success Response:** `200 OK`
+```json
+{
+    "success": true,
+    "message": "Recent tasks retrieved successfully",
+    "data": {
+        "tasks": [
+            {
+                "task_id": 25,
+                "title": "Prepare Presentation",
+                "description": "Create slides for Monday meeting",
+                "status": "PENDING",
+                "priority": "HIGH",
+                "start_date": "2025-10-29",
+                "due_date": "2025-11-03",
+                "is_overdue": false,
+                "user_id": 3
+            },
+            {
+                "task_id": 24,
+                "title": "Refactor Backend Code",
+                "description": "Optimize database queries",
+                "status": "COMPLETED",
+                "priority": "MEDIUM",
+                "start_date": "2025-10-25",
+                "due_date": "2025-10-30",
+                "is_overdue": false,
+                "user_id": 3
+            }
+        ]
+    }
+}
+```
+
+**Empty Response:** 200 `OK`
+```json
+{
+    "success": true,
+    "message": "No recent tasks found",
+    "data": {
+        "tasks": []
+}
+```
+
+**Error Response:** `500 Internal Server Error`
+```json
+{
+    "success": false,
+    "error": "Failed to fetch recent tasks: <error_message>",
+    "status_code": 500
+}
+```
+
+---
+
+
+### 11. Get Upcoming Tasks
+
+Retrieve all tasks whose due dates are in the future (upcoming deadlines).
+
+**Endpoint:** `GET http://127.0.0.1:5000/user/tasks/upcoming`
+
+**Authentication Required:** Yes
+
+**Headers:**
+
+```
+Authorization: Bearer <access_token>
+```
+
+**Example Request:**
+```
+GET http://127.0.0.1:5000/user/tasks/upcoming
+```
+
+
+**Success Response:** `200 OK`
+```json
+{
+    "success": true,
+    "message": "Upcoming tasks retrieved successfully",
+    "data": {
+        "tasks": [
+            {
+                "task_id": 30,
+                "title": "Submit Project File",
+                "description": "Finish slides and demo before deadline",
+                "status": "PENDING",
+                "priority": "LOW",
+                "start_date": "2025-11-01",
+                "due_date": "2025-11-20",
+                "is_overdue": false,
+                "user_id": 3
+            },
+            {
+                "task_id": 31,
+                "title": "Team Review Meeting",
+                "description": "Discuss next sprint planning",
+                "status": "PENDING",
+                "priority": "MEDIUM",
+                "start_date": "2025-11-02",
+                "due_date": "2025-11-05",
+                "is_overdue": false,
+                "user_id": 3
+            }
+        ]
+    }
+}
+```
+
+**Empty Response:** 200 `OK`
+```json
+{
+    "success": true,
+    "message": "No upcoming  tasks found",
+    "data": {
+        "tasks": []
+    }
+}
+```
+
+**Error Response:** `500 Internal Server Error`
+```json
+{
+    "success": false,
+    "error": "Failed to fetch upcoming tasks: <error_message>",
+    "status_code": 500
+}
+```
+
+---
+
+
+### 12. Create Task
 
 Create a new task.
 
@@ -761,7 +1099,7 @@ Content-Type: application/json
 
 ---
 
-### 8. Update Task
+### 13. Update Task
 
 Update an existing task.
 
@@ -836,7 +1174,7 @@ One can edit title, description, status, priority, due_date
 
 ---
 
-### 9. Delete Task
+### 14. Delete Task
 
 Delete a specific task.
 
@@ -875,7 +1213,7 @@ DELETE [http://127.0.0.1:5000/user/tasks/12](http://127.0.0.1:5000/user/tasks/12
 
 ---
 
-### 10. Bulk Delete Tasks
+### 15. Bulk Delete Tasks
 
 Delete multiple mentioned tasks at once.
 
@@ -1018,7 +1356,19 @@ curl -X GET "http://localhost:5000/user/tasks?priority=HIGH" \
   -H "Authorization: Bearer <your_token>"
 ```
 
-#### 5. Update task status
+#### 5. Get today's tasks
+```bash
+curl -X GET http://localhost:5000/user/tasks/today \
+  -H "Authorization: Bearer <your_token>"
+```
+
+#### 6. Get task statistics
+```bash
+curl -X GET http://localhost:5000/user/tasks/stats \
+  -H "Authorization: Bearer <your_token>
+```
+
+#### 7. Update task status
 ```bash
 curl -X PUT http://localhost:5000/user/tasks/1 \
   -H "Content-Type: application/json" \
@@ -1028,7 +1378,7 @@ curl -X PUT http://localhost:5000/user/tasks/1 \
   }'
 ```
 
-#### 6. Delete completed tasks
+#### 8. Delete completed tasks
 ```bash
 curl -X DELETE "http://localhost:5000/user/tasks/bulk_delete?task_ids=1,2,3" \
   -H "Authorization: Bearer <your_token>"
