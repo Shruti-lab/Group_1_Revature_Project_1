@@ -41,6 +41,9 @@ taskflow_api/
 ├── app/                                 # Main application package
 │   ├── __init__.py                      # App factory initialization (creates Flask app, registers blueprints)
 │   │
+|   |-- cli
+|   |   |-- cli.py                       # Custom Click commands for admin/automation tasks
+|   | 
 │   ├── models/                          # Database models (SQLAlchemy ORM)
 │   │   ├── __init__.py
 │   │   ├── user.py                      # User model (fields, relationships, password hashing)
@@ -48,8 +51,7 @@ taskflow_api/
 │   │
 │   ├── routes/                          # API endpoints organized by resource
 │   │   ├── __init__.py
-│   │   ├── auth_routes.py               # Handles register, login, logout
-│   │   ├── user_routes.py               # Handles user profile & update operations
+│   │   ├── auth_routes.py               # Handles register, login, logout, user profile & update operations
 │   │   └── task_routes.py               # CRUD operations for tasks + filters/pagination
 │   │
 │   ├── schemas/                         # Marshmallow / Pydantic schemas for validation & serialization
@@ -59,13 +61,14 @@ taskflow_api/
 │   │
 │   ├── utils/                           # Helper utilities & CLI commands
 │   │   ├── __init__.py
-│   │   ├── jwt_helper.py                # JWT generation, decoding, token validation helpers
-│   │   └── cli_commands.py              # Custom Click commands for admin/automation tasks
+│   │   ├── jwtUtil.py                   # JWT generation, decoding, token validation helpers
+│   │   └── response.py                  # Success, error responses formatted properly
 │   │
 │   └── config.py                        # App configuration (DB URL, secret keys, environment settings)
 │
 ├── migrations/                          # Flask-Migrate auto-generated DB migration files
 │
+|-- tests                                # Includes tests
 ├── .env                                 # Environment variables (DB connection, secrets)
 ├── requirements.txt                     # Python dependencies list
 ├── run.py                               # Entry point to start the Flask server
