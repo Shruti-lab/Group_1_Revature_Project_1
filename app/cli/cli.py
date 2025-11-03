@@ -55,7 +55,7 @@ def login(email, password):
 
 # GET CURRENT USER
 @cli.command()
-def user():
+def current_user():
     """Get logged-in user profile"""
     token = load_token()
     if not token:
@@ -97,7 +97,7 @@ from datetime import date
 @click.option("--priority", default="LOW", help="Task priority (LOW, MEDIUM, HIGH)")
 @click.option("--due_date", help="Due date (YYYY-MM-DD)")
 @click.option("--start_date", help="Start date (YYYY-MM-DD)")
-def create(title, description, status, priority, due_date, start_date):
+def create_task(title, description, status, priority, due_date, start_date):
     """Create a new task"""
     token = load_token()
     if not token:
@@ -123,6 +123,124 @@ def create(title, description, status, priority, due_date, start_date):
         click.echo(response.text)
 
 
+def make_request(endpoint, params=None):
+    """Helper to send GET requests with auth token."""
+    token = load_token()
+    if not token:
+        click.secho("No token found. Please log in first.", fg="red")
+        return None
+
+    headers = {"Authorization": f"Bearer {token}"}
+
+    try:
+        response = requests.get(f"{API_URL}/user/tasks{endpoint}", headers=headers, params=params)
+        data = response.json()
+
+        if response.status_code == 200:
+            click.secho(f"\n {data.get('message', 'Success')}", fg="green")
+
+            result = data.get("data", None)
+
+            if isinstance(result, list):
+                if len(result) == 0:
+                    click.echo("No records found.")
+                else:
+                    click.echo("\nResults:")
+                    for item in result:
+                        click.echo(f"  - {item}")
+
+            elif isinstance(result, dict):
+                click.echo("\nData:")
+                click.echo(json.dumps(result, indent=2))
+
+            else:
+                click.echo(result)
+
+        else:
+            click.secho(f"\n Error {response.status_code}", fg="red")
+            click.echo(response.text)
+
+    except Exception as e:
+        click.secho(f"Request failed: {str(e)}", fg="red")
+
+
+# -------------------------------------------------------------------------
+# Get All Tasks (with filters)
+# -------------------------------------------------------------------------
+@cli.command("list")
+@click.option("--status", help="Filter by status (e.g. PENDING, COMPLETED)")
+@click.option("--priority", help="Filter by priority (e.g. HIGH, MEDIUM, LOW)")
+@click.option("--search", help="Search tasks by title")
+@click.option("--page", default=1, help="Page number for pagination")
+@click.option("--per-page", default=10, help="Items per page")
+def get_all(status, priority, search, page, per_page):
+    """Get all tasks for the logged-in user."""
+    params = {
+        "status": status,
+        "priority": priority,
+        "search": search,
+        "page": page,
+        "per_page": per_page
+    }
+    make_request("/", params)
+
+
+# -------------------------------------------------------------------------
+# Get Single Task
+# -------------------------------------------------------------------------
+@cli.command("get-task")
+@click.argument("task_id", type=int)
+def get_one(task_id):
+    """Get details of a single task by ID."""
+    make_request(f"/{task_id}")
+
+
+# -------------------------------------------------------------------------
+# Get Overdue Tasks
+# -------------------------------------------------------------------------
+@cli.command()
+def overdue_tasks():
+    """List overdue tasks."""
+    make_request("/overdue")
+
+
+# -------------------------------------------------------------------------
+# Get Today's Tasks
+# -------------------------------------------------------------------------
+@cli.command()
+def todays_tasks():
+    """List tasks due today."""
+    make_request("/today")
+
+
+# -------------------------------------------------------------------------
+# Get Task Statistics
+# -------------------------------------------------------------------------
+@cli.command("stat-tasks")
+def get_stats():
+    """Show task stats summary."""
+    make_request("/stats")
+
+
+# -------------------------------------------------------------------------
+# Get Recent Tasks
+# -------------------------------------------------------------------------
+@cli.command("recent-tasks")
+@click.option("--limit", default=5, help="Limit number of recent tasks")
+def get_recent(limit):
+    """Get recent tasks."""
+    params = {"limit": limit}
+    make_request("/recent", params)
+
+
+# -------------------------------------------------------------------------
+# Get Upcoming Tasks
+# -------------------------------------------------------------------------
+@cli.command("upcoming-tasks")
+def get_upcoming():
+    """List upcoming tasks."""
+    make_request("/upcoming")
+
 # UPDATE TASK
 @cli.command()
 @click.argument("task_id", type=int)
@@ -131,7 +249,7 @@ def create(title, description, status, priority, due_date, start_date):
 @click.option("--status", help="New status (PENDING, IN_PROGRESS, COMPLETED, CANCELLED)")
 @click.option("--priority", help="New priority (LOW, MEDIUM, HIGH)")
 @click.option("--due_date", help="New due date (YYYY-MM-DD)")
-def update(task_id, title, description, status, priority, due_date):
+def update_task(task_id, title, description, status, priority, due_date):
     """Update an existing task by ID"""
     token = load_token()
     if not token:
@@ -167,7 +285,7 @@ def update(task_id, title, description, status, priority, due_date):
 #  DELETE TASK
 @cli.command()
 @click.argument("task_id", type=int)
-def delete(task_id):
+def delete_task(task_id):
     """Delete a task by ID"""
     token = load_token()
     if not token:
@@ -191,7 +309,7 @@ def delete(task_id):
 # BULK DELETE TASKS
 
 @cli.command("bulk-delete")
-@click.option("--ids", multiple=True, required=True, type=int, help="Task IDs to delete (e.g. --ids 1 2 3)")
+@click.argument("ids", nargs=-1, type=int)
 def bulk_delete(ids):
     """Delete multiple tasks by IDs"""
     token = load_token()
@@ -199,23 +317,25 @@ def bulk_delete(ids):
         click.echo("Login required.")
         return
 
-    # Convert multiple IDs to comma-separated string
+    if not ids:
+        click.echo("No task IDs provided.")
+        return
+
+    # Convert IDs to comma separated string
     ids_str = ",".join(map(str, ids))
     url = f"{API_URL}/user/tasks/bulk_delete?task_ids={ids_str}"
     headers = {"Authorization": f"Bearer {token}"}
 
-    # Confirm before deleting
     confirm = click.confirm(f"Are you sure you want to delete tasks {ids_str}?", default=False)
     if not confirm:
         click.echo("Cancelled.")
         return
 
     response = requests.delete(url, headers=headers)
-
     try:
         click.echo(json.dumps(response.json(), indent=2))
-    except Exception:
+    except:
         click.echo(response.text)
 
-if __name__ == "__main__":
+if __name__ == "_main_":
     cli()

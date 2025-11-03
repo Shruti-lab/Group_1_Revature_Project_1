@@ -296,7 +296,7 @@ def create_task():
 @task_bp.route('/<int:task_id>',methods=['PUT'])
 @jwt_required()
 def update_task(task_id):
-    try:
+   try:
         user_id = get_jwt_identity()
         # Find task
         task = Task.query.filter_by(task_id=task_id, user_id=user_id).first()
@@ -307,7 +307,6 @@ def update_task(task_id):
         # Validate request data
         data = TaskUpdateSchema(**request.get_json())
 
-        print(data)
         
         # Update task fields
         if data.title is not None:
@@ -328,10 +327,19 @@ def update_task(task_id):
             message='Task updated successfully'
         )
         
-    except ValidationError as e:
-        return error_response('Validation failed', 400, errors=e.errors())
+   except ValidationError as e:
+        # Formatng validation errors properly
+        errors = []
+        print(e.errors())
+        for error in e.errors():
+            errors.append({
+                'field': error['loc'][0] if error['loc'] else 'unknown',
+                'message': error['msg'],
+                'type': error['type']
+            })
+        return error_response('Validation failed', 400, errors=errors)
     
-    except Exception as e:
+   except Exception as e:
         db.session.rollback()
         return error_response(f'Failed to update task: {str(e)}', 500)
 
