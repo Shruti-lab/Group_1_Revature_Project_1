@@ -97,7 +97,7 @@ from datetime import date
 @click.option("--priority", default="LOW", help="Task priority (LOW, MEDIUM, HIGH)")
 @click.option("--due_date", help="Due date (YYYY-MM-DD)")
 @click.option("--start_date", help="Start date (YYYY-MM-DD)")
-def create_user(title, description, status, priority, due_date, start_date):
+def create_task(title, description, status, priority, due_date, start_date):
     """Create a new task"""
     token = load_token()
     if not token:
@@ -127,23 +127,41 @@ def make_request(endpoint, params=None):
     """Helper to send GET requests with auth token."""
     token = load_token()
     if not token:
-        click.echo("No token found. Please log in first.")
+        click.secho("No token found. Please log in first.", fg="red")
         return None
 
     headers = {"Authorization": f"Bearer {token}"}
+
     try:
         response = requests.get(f"{API_URL}/user/tasks{endpoint}", headers=headers, params=params)
+        data = response.json()
+
         if response.status_code == 200:
-            data = response.json()
-            click.echo( data.get("message", "Success"))
-            click.echo(data.get("data"))
+            click.secho(f"\n {data.get('message', 'Success')}", fg="green")
+
+            result = data.get("data", None)
+
+            if isinstance(result, list):
+                if len(result) == 0:
+                    click.echo("No records found.")
+                else:
+                    click.echo("\nResults:")
+                    for item in result:
+                        click.echo(f"  - {item}")
+
+            elif isinstance(result, dict):
+                click.echo("\nData:")
+                click.echo(json.dumps(result, indent=2))
+
+            else:
+                click.echo(result)
+
         else:
-            click.echo(f" {response.status_code} - {response.text}")
+            click.secho(f"\n Error {response.status_code}", fg="red")
+            click.echo(response.text)
+
     except Exception as e:
-        click.echo(f" Request failed: {str(e)}")
-
-
-
+        click.secho(f"Request failed: {str(e)}", fg="red")
 
 
 # -------------------------------------------------------------------------
@@ -291,7 +309,7 @@ def delete_task(task_id):
 # BULK DELETE TASKS
 
 @cli.command("bulk-delete")
-@click.option("--ids", multiple=True, required=True, type=int, help="Task IDs to delete (e.g. --ids 1 2 3)")
+@click.argument("ids", nargs=-1, type=int)
 def bulk_delete(ids):
     """Delete multiple tasks by IDs"""
     token = load_token()
@@ -299,23 +317,25 @@ def bulk_delete(ids):
         click.echo("Login required.")
         return
 
-    # Convert multiple IDs to comma-separated string
+    if not ids:
+        click.echo("No task IDs provided.")
+        return
+
+    # Convert IDs to comma separated string
     ids_str = ",".join(map(str, ids))
     url = f"{API_URL}/user/tasks/bulk_delete?task_ids={ids_str}"
     headers = {"Authorization": f"Bearer {token}"}
 
-    # Confirm before deleting
     confirm = click.confirm(f"Are you sure you want to delete tasks {ids_str}?", default=False)
     if not confirm:
         click.echo("Cancelled.")
         return
 
     response = requests.delete(url, headers=headers)
-
     try:
         click.echo(json.dumps(response.json(), indent=2))
-    except Exception:
+    except:
         click.echo(response.text)
 
-if __name__ == "__main__":
+if __name__ == "_main_":
     cli()
