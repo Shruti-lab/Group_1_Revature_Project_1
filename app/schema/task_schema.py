@@ -33,15 +33,6 @@ class TaskCreateSchema(BaseModel):
 
 
 
-# title = db.Column(db.String(200), nullable=False)
-#     description = db.Column(db.Text, nullable=True)
-#     start_date = db.Column(db.DateTime, default=datetime.now(timezone.utc))
-#     due_date = db.Column(db.DateTime, nullable=True)
-#     priority = db.Column(db.Enum(PriorityEnum), default=PriorityEnum.LOW)
-#         status = db.Column(db.Enum(StatusEnum), default=StatusEnum.PENDING)
-
-
-
 class TaskUpdateSchema(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = None

@@ -3,7 +3,7 @@
 This document explains how to use the TaskFlow CLI tool built using Python and Click framework. The CLI interacts with a Flask-based backend API for authentication and task management.
 
 ---
-## ✅ Setup Instructions
+## ✅ *Setup Instructions*
 1. Ensure backend API is running at:
    
    http://127.0.0.1:5000
@@ -18,17 +18,17 @@ This document explains how to use the TaskFlow CLI tool built using Python and C
    
 
 ---
-# ✅ Authentication Commands
+# ✅ *Authentication Commands*
 
-### 1. Sign Up
+### *1. Sign Up*
 Register a new user
 bash
 python -m app.cli signup --name "John Doe" --email "john@example.com" --password "123456"
 
-Response: JSON message confirming account creation.
+*Response:* JSON message confirming account creation.
 
 ---
-### 2. Login
+### *2. Login*
 Login and store JWT token in token.txt
 bash
 python -m app.cli login --email "john@example.com" --password "123456"
@@ -36,23 +36,23 @@ python -m app.cli login --email "john@example.com" --password "123456"
 ✅ If successful: Login successful. Token saved.
 
 ---
-### 3. User Profile
+### *3. Current User*
 Fetch logged-in user profile
 bash
-python -m app.cli get-profile
+python -m app.cli current-user
 
 
 ---
-### 4. Update Profile
+### *4. Update Profile*
 Update name and/or password
 bash
 python -m app.cli update-user --name "New Name" --password "newpass123"
 
 
 ---
-# ✅ Task Commands
+# ✅ *Task Commands*
 
-### 5. Create Task
+### *5. Create Task*
 bash
 python -m app.cli create-task
 
@@ -67,71 +67,71 @@ Optional:
 
 Example:
 bash
-python -m app.cli create-task --title api --description anerwre  --due_date 2026-01-20 
+python -m app.cli create-task --status COMPLETED --priority HIGH --due_date 2026-01-20
 
 
 ---
-### 6. List All Tasks (with filters & pagination)
+### *6. List All Tasks (with filters & pagination)*
 bash
 python -m app.cli list --status PENDING --priority HIGH --search "report" --page 1 --per-page 5
 
 All options are optional.
 
 ---
-### 7. Get Single Task
+### *7. Get Single Task*
 bash
 python -m app.cli get-task 4
 
 Fetches task with ID = 4
 
 ---
-### 8. Overdue Tasks
+### *8. Overdue Tasks*
 bash
 python -m app.cli overdue-tasks
 
 Shows tasks whose due date passed.
 
 ---
-### 9. Today’s Tasks
+### *9. Today’s Tasks*
 bash
 python -m app.cli todays-tasks
 
 
 ---
-### 10. Task Statistics
+### *10. Task Statistics*
 bash
 python -m app.cli stat-tasks
 
 Returns summary count of tasks by status & priority.
 
 ---
-### 11. Recent Tasks
+### *11. Recent Tasks*
 bash
 python -m app.cli recent-tasks --limit 10
 
 
 ---
-### 12. Upcoming Tasks
+### *12. Upcoming Tasks*
 bash
 python -m app.cli upcoming-tasks
 
 
 ---
-### 13. Update Task
+### *13. Update Task*
 bash
 python -m app.cli update-task 3 --title "New Title" --priority HIGH --due_date 2025-02-01
 
 Updates only provided fields.
 
 ---
-### 14. Delete a Task
+### *14. Delete a Task*
 bash
 python -m app.cli delete-task 3
 
 Prompts confirmation before deletion.
 
 ---
-### 15. Bulk Delete Tasks
+### *15. Bulk Delete Tasks*
 bash
 python -m app.cli bulk-delete --ids 2 5 7
 
