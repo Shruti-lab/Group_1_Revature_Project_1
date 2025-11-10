@@ -3,18 +3,21 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
-from app.config import Config
+from app.config import Config, TestingConfig  
 
 db = SQLAlchemy()
 bcrypt = Bcrypt()
 migrate = Migrate()
 jwt = JWTManager()
 
-def create_app():
+def create_app(testing=False):
 
     app = Flask(__name__)
-    ## loading the config file
-    app.config.from_object(Config)
+
+    if testing:
+        app.config.from_object(TestingConfig)
+    else:
+        app.config.from_object(Config)
 
     ## initializing the plugins
     db.init_app(app)
