@@ -3,4 +3,5 @@
 __pycache__
 migrations/
 instance/
-token.txt
+config.json
+logs
