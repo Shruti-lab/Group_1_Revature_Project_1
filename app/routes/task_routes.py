@@ -307,7 +307,11 @@ def create_task():
 
     try:
         # Validate request data
-        data = TaskCreateSchema(**request.get_json())
+        payload = request.get_json()
+        data = TaskCreateSchema(**payload)
+        
+        # Create new task
+        user_id = get_jwt_identity()
         new_task = Task(
             title=data.title,
             description=data.description,
@@ -316,7 +320,6 @@ def create_task():
             due_date=data.due_date,
             user_id=user_id
         )
-        
         db.session.add(new_task)
         db.session.commit()
 
@@ -326,17 +329,15 @@ def create_task():
             message='Task created successfully',
             status_code=201
         )
-    except ValueError as e:
-        logger.warning(f"Task attempted to create with wrong status for user {user_id}.")
-        return error_response(str(e), 400)
+    
     except ValidationError as e:
-        logger.warning(f"Task creation pydantic validation failed for user {user_id}.")
-        return error_response(message=str(e), status_code=400)
+        first_error = e.errors()[0]
+        message = first_error.get('msg', 'Invalid input')
+        return error_response(message, 400)
+    
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Failed to create task for user {user_id}.")
-        return error_response(f"Failed to create task: {str(e)}", 500)
-
+        return error_response(f'Failed to create task: {str(e)}', 500)
 
 
 
