@@ -275,7 +275,6 @@ def create_task():
             due_date=data.due_date,
             user_id=user_id
         )
-        
         db.session.add(new_task)
         db.session.commit()
         
@@ -284,9 +283,17 @@ def create_task():
             message='Task created successfully',
             status_code=201
         )
+    
+    except ValueError as e:
+        # 👇 Handle the raised error here
+        return error_response(str(e), 400)
 
     except ValidationError as e:
         return error_response(message=str(e), status_code=400)
+    
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to create task: {str(e)}', 500)
 
 
 
