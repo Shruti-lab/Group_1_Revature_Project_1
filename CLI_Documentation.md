@@ -29,7 +29,7 @@ python -m app.cli signup --name "John Doe" --email "john@example.com" --password
 
 ---
 ### *2. Login*
-Login and store JWT token in token.txt
+Login and store JWT token in config.json
 bash
 python -m app.cli login --email "john@example.com" --password "123456"
 
@@ -39,7 +39,7 @@ python -m app.cli login --email "john@example.com" --password "123456"
 ### *3. Current User*
 Fetch logged-in user profile
 bash
-python -m app.cli current-user
+python -m app.cli get-profile
 
 
 ---
@@ -47,6 +47,12 @@ python -m app.cli current-user
 Update name and/or password
 bash
 python -m app.cli update-user --name "New Name" --password "newpass123"
+
+---
+### *3. Logout*
+Logout and clear token
+bash
+python -m app.cli logout
 
 
 ---
@@ -60,8 +66,8 @@ CLI will prompt for:
 - Title
 - Description
 Optional:
-- --status (PENDING, IN_PROGRESS…)
-- --priority
+- --status   ('PENDING','IN_PROGRESS','COMPLETED','CANCELLED')
+- --priority  (LOW, MEDIUM, HIGH )
 - --due_date YYYY-MM-DD
 - --start_date YYYY-MM-DD
 
@@ -141,7 +147,7 @@ Deletes multiple tasks at once.
 ## ✅ TOKEN HANDLING
 Token is stored in:
 
-token.txt
+config.json
 
 If token missing, CLI asks to login first.
 
