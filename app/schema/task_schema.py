@@ -3,11 +3,10 @@ from typing import Optional
 from datetime import date
 from app.models.task import PriorityEnum, StatusEnum
 
+
 class TaskCreateSchema(BaseModel):
     title: str = Field(...,min_length=1,max_length = 200)
     description: Optional[str] = None
-    # status: str = StatusEnum.PENDING.value
-    # priority: str = PriorityEnum.LOW.value
     status: StatusEnum = StatusEnum.PENDING  # ✅ Use Enum directly, not .value
     priority: PriorityEnum = PriorityEnum.LOW  # ✅ Use Enum directly
     start_date: Optional[date] = None
@@ -15,12 +14,18 @@ class TaskCreateSchema(BaseModel):
 # When you use .value, you are storing the enum as a plain string.
 # That means Pydantic loses all awareness that this field is an enum — it treats it like "PENDING" instead of StatusEnum.PENDING.
 
-    @validator('status')
+    @validator('status', pre=True, always=True)
     def validate_status(cls, value):
         """Prevent creating tasks that are already completed or cancelled"""
-        if value in [StatusEnum.COMPLETED, StatusEnum.CANCELLED]:
-            raise ValueError('Cannot create a task with COMPLETED or CANCELLED status. New tasks must be PENDING or IN_PROGRESS.')
-        return value
+        if isinstance(value, str):
+            value = value.upper()
+        try:
+            enum_value = StatusEnum(value)
+        except ValueError:
+            raise ValueError(f"Invalid status '{value}'. Must be one of {[s.value for s in StatusEnum]}")
+        if enum_value in [StatusEnum.COMPLETED, StatusEnum.CANCELLED]:
+            raise ValueError('Cannot create a task with COMPLETED or CANCELLED status.')
+        return enum_value
     
     @validator('priority')
     def validate_priority(cls, value):
@@ -64,8 +69,6 @@ class TaskCreateSchema(BaseModel):
 class TaskUpdateSchema(BaseModel):
     title: Optional[str] = Field(None, min_length=1, max_length=200)
     description: Optional[str] = None
-    # status: Optional[str] = None
-    # priority: Optional[str] = None
     status: Optional[StatusEnum] = None  # ✅ Use Enum type
     priority: Optional[PriorityEnum] = None  # ✅ Use Enum type
     due_date: Optional[date] = None
@@ -85,14 +88,6 @@ class TaskUpdateSchema(BaseModel):
     class Config:
         use_enum_values = True
 
-
-# class TaskReadSchema(BaseModel):
-#     title: str = Field(...,min_length=1,max_length = 200)
-#     description: Optional[str] = None
-#     status: str = StatusEnum.PENDING.value
-#     priority: str = PriorityEnum.LOW.value
-#     start_date: date
-#     due_date: Optional[date] = None
 
 class TaskReadSchema(BaseModel):
     task_id: int

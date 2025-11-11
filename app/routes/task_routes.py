@@ -263,7 +263,8 @@ def get_upcoming_tasks():
 def create_task():
     try:
         # Validate request data
-        data = TaskCreateSchema(**request.get_json())
+        payload = request.get_json()
+        data = TaskCreateSchema(**payload)
         
         # Create new task
         user_id = get_jwt_identity()
@@ -284,12 +285,10 @@ def create_task():
             status_code=201
         )
     
-    except ValueError as e:
-        # 👇 Handle the raised error here
-        return error_response(str(e), 400)
-
     except ValidationError as e:
-        return error_response(message=str(e), status_code=400)
+        first_error = e.errors()[0]
+        message = first_error.get('msg', 'Invalid input')
+        return error_response(message, 400)
     
     except Exception as e:
         db.session.rollback()
