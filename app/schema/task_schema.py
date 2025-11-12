@@ -1,5 +1,5 @@
 from pydantic import BaseModel, validator , Field
-from typing import Optional
+from typing import Optional ,List
 from datetime import date
 from app.models.task import PriorityEnum, StatusEnum
 
@@ -10,7 +10,7 @@ class TaskCreateSchema(BaseModel):
     priority: str = PriorityEnum.LOW.value
     start_date: Optional[date] = None
     due_date: Optional[date] = None
-
+    images: Optional[List[str]] = []   
 
     @validator('status')
     def validate_satus(cls, value):
@@ -39,6 +39,7 @@ class TaskUpdateSchema(BaseModel):
     status: Optional[str] = None
     priority: Optional[str] = None
     due_date: Optional[date] = None
+    images: Optional[List[str]] = [] 
     
     @validator('status')
     def validate_status(cls, v):
@@ -61,6 +62,7 @@ class TaskReadSchema(BaseModel):
     priority: str = PriorityEnum.LOW.value
     start_date: date
     due_date: Optional[date] = None
+    images: List[str] = []  
 
     
 

@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from datetime import date, datetime
 from sqlalchemy import func
+from app.utils.s3_helper import upload_to_s3,delete_from_s3
 
 task_bp = Blueprint("task_bp",__name__)
 
@@ -258,13 +259,21 @@ def get_upcoming_tasks():
 
 
 # Create a new task
-@task_bp.route('/',methods=['POST'])
+@task_bp.route('/', methods=['POST'])
 @jwt_required()
 def create_task():
     try:
         # Validate request data
-        data = TaskCreateSchema(**request.get_json())
-        
+        data = TaskCreateSchema(**request.form.to_dict())  
+
+        # Handle multiple files
+        files = request.files.getlist("images")  
+        image_urls = []
+
+        for file in files:
+            url = upload_to_s3(file) 
+            image_urls.append(url)
+
         # Create new task
         user_id = get_jwt_identity()
         new_task = Task(
@@ -273,12 +282,13 @@ def create_task():
             status=data.status,
             priority=data.priority,
             due_date=data.due_date,
-            user_id=user_id
+            user_id=user_id,
+            images=image_urls  
         )
-        
+
         db.session.add(new_task)
         db.session.commit()
-        
+
         return success_response(
             data=new_task.to_dict(),
             message='Task created successfully',
@@ -287,59 +297,69 @@ def create_task():
 
     except ValidationError as e:
         return error_response(message=str(e), status_code=400)
+    except Exception as e:
+        return error_response(message=str(e), status_code=500)
 
 
 
 
+from sqlalchemy.orm.attributes import flag_modified
 
-# Update one task of the user
-@task_bp.route('/<int:task_id>',methods=['PUT'])
+@task_bp.route('/<int:task_id>', methods=['PUT'])
 @jwt_required()
 def update_task(task_id):
-   try:
+    try:
         user_id = get_jwt_identity()
-        # Find task
         task = Task.query.filter_by(task_id=task_id, user_id=user_id).first()
-        
+
         if not task:
             return error_response('Task not found', 404)
-        
-        # Validate request data
-        data = TaskUpdateSchema(**request.get_json())
 
-        
-        # Update task fields
+        data = TaskUpdateSchema(**request.form.to_dict())
+
+        files = request.files.getlist("images")
+        image_urls = []
+        for file in files:
+            if file and file.filename:
+                url = upload_to_s3(file)
+                if url:
+                    image_urls.append(url)
+
         if data.title is not None:
             task.title = data.title
         if data.description is not None:
             task.description = data.description
         if data.status is not None:
-            task.status = data.status
+            task.status = StatusEnum(data.status.upper())
         if data.priority is not None:
-            task.priority = data.priority
+            task.priority = PriorityEnum(data.priority.upper())
         if data.due_date is not None:
             task.due_date = data.due_date
-        
+
+        if image_urls:
+            if not task.images:
+                task.images = []
+            task.images.extend(image_urls)
+            flag_modified(task, "images") 
+
         db.session.commit()
-        
+
         return success_response(
             data=task.to_dict(),
             message='Task updated successfully'
         )
-        
-   except ValidationError as e:
-        # Formatng validation errors properly
-        errors = []
-        print(e.errors())
-        for error in e.errors():
-            errors.append({
-                'field': error['loc'][0] if error['loc'] else 'unknown',
-                'message': error['msg'],
-                'type': error['type']
-            })
+
+    except ValidationError as e:
+        errors = [
+            {
+                'field': err['loc'][0] if err['loc'] else 'unknown',
+                'message': err['msg'],
+                'type': err['type']
+            } for err in e.errors()
+        ]
         return error_response('Validation failed', 400, errors=errors)
-    
-   except Exception as e:
+
+    except Exception as e:
         db.session.rollback()
         return error_response(f'Failed to update task: {str(e)}', 500)
 
@@ -358,6 +378,9 @@ def delete_task(task_id):
         if not task:
             return error_response('Task not found', 404)
         
+        if task.images:
+            delete_from_s3(task.images)
+
         db.session.delete(task)
         db.session.commit()
         
@@ -388,6 +411,8 @@ def bulk_delete():
             return error_response("No valid tasks found to delete", 404)
 
         for task in tasks:
+            if task.images:
+                 delete_from_s3(task.images)
             db.session.delete(task)
         db.session.commit()
 
