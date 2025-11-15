@@ -327,7 +327,7 @@ def create_task():
         new_task = Task(
             title=data.title,
             description=data.description,
-            status=data.status,
+            status=StatusEnum.PENDING,
             priority=data.priority,
             due_date=data.due_date,
             user_id=user_id,
