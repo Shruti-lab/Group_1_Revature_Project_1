@@ -144,7 +144,7 @@ def get_overdue_tasks():
         return success_response(data=data, message="Overdue tasks fetched")
 
     except Exception as e:
-        logger.error(f"Failed to fetch overdue tasks for user {user_id}: {str(e)}")
+        logger.error(f"Failed to fetch overdue tasks for user {user_id}.")
         return error_response(f"Failed to fetch overdue tasks: {str(e)}", 500)
 
 

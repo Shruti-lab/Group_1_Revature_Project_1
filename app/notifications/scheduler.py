@@ -1,7 +1,11 @@
 from apscheduler.schedulers.background import BackgroundScheduler
 from datetime import datetime, timedelta
 import logging
-
+from app.models.task import Task, StatusEnum
+from app.models.user import User
+from app import db
+import boto3
+import os
 logger = logging.getLogger(__name__)
 
 def start_scheduler(flask_app):
@@ -15,11 +19,7 @@ def start_scheduler(flask_app):
         """Wrapper to execute notification job within Flask app context"""
         with flask_app.app_context():
             try:
-                from app.models.task import Task, StatusEnum
-                from app.models.user import User
-                from app import db
-                import boto3
-                import os
+
 
                 now = datetime.utcnow()
                 upcoming_boundary = now + timedelta(days=1)
