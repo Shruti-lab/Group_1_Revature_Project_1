@@ -43,7 +43,7 @@ def start_scheduler(flask_app):
                     #     continue
                     tasks = Task.query.filter(
                     Task.user_id == user.user_id,
-                    Task.status.in_([StatusEnum.PENDING, StatusEnum.IN_PROGRESS]),
+                    Task.status.in_([StatusEnum.PENDING]),
                     Task.due_date != None,
                     Task.due_date <= upcoming_boundary,
                     Task.due_date >= now  # Avoid past-due duplicates
@@ -79,7 +79,7 @@ def start_scheduler(flask_app):
     scheduler.add_job(job_wrapper, 'cron', hour=7, minute=0)
 
     # Uncomment for testing: run every minute
-    # scheduler.add_job(job_wrapper, 'interval', minutes=5)
+    # scheduler.add_job(job_wrapper, 'interval', minutes=2)
 
     try:
         scheduler.start()

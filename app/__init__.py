@@ -6,7 +6,7 @@ from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from app.config import Config
 from .utils.logger import setup_logging
-from .utils.logger import setup_logging
+
 
 db = SQLAlchemy()
 bcrypt = Bcrypt()
@@ -19,8 +19,6 @@ def create_app():
     # loading the config file
     app.config.from_object(Config)
 
-    #setting up logging
-    setup_logging(app)
 
     # setting up logging
     setup_logging(app)
@@ -59,6 +57,15 @@ def create_app():
     # importing and registering the blueprints
     from app.routes import register_routes
     register_routes(app)
+
+    
+    # register notifications blueprint
+    from app.notifications.routes import notifications_bp
+    app.register_blueprint(notifications_bp, url_prefix='/notifications')
+
+    # start background scheduler (after app setup is complete)
+    from app.notifications.scheduler import start_scheduler
+    start_scheduler(app)
 
     @app.errorhandler(404)
     def not_found_error(error):

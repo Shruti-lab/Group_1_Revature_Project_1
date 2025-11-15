@@ -57,7 +57,7 @@ def subscribe():
         if not user.email:
             return jsonify({"success": False, "error": "User has no email"}), 400
 
-        sns = boto3.client("sns", region_name="ap-south-1")
+        sns = boto3.client("sns", region_name=os.getenv("AWS_REGION", "us-east-1"))
 
         # -------------------------------------------
         # 1️⃣ Load topic ARN from DB

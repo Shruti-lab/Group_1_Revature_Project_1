@@ -6,7 +6,7 @@ from app.schema.task_schema import TaskCreateSchema, TaskReadSchema, TaskUpdateS
 from app.utils.response import success_response, error_response
 from pydantic import ValidationError
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from datetime import date, datetime
+from datetime import date, datetime,timezone
 from sqlalchemy import func
 from app.utils.s3_helper import upload_to_s3,delete_from_s3
 import logging
@@ -115,15 +115,6 @@ def get_one_task(task_id):
     except Exception as e:
         logger.error(f"Failed to fetch task {task_id} for user {user_id}.")
         return error_response(f"Failed to fetch task: {str(e)}", 500)
-<<<<<<< Updated upstream
-
-
-#**************************************************************************************************
-
-
-# GET /overdue - tasks that are overdue (and not completed/cancelled)
-@task_bp.route('/overdue', methods=['GET'])
-=======
 
 
 #**************************************************************************************************
@@ -135,124 +126,27 @@ def get_one_task(task_id):
 def get_overdue_tasks():
     user_id = get_jwt_identity()
     logger.info(f"Fetching overdue tasks for user id: {user_id}")
-        
-    try:
-        # Fetch tasks that belong to user, have a due_date before today,
-        # and are not COMPLETED or CANCELLED
-        today_start = datetime.combine(date.today(), datetime.min.time()).replace(tzinfo=timezone.utc)
-        overdue_tasks = Task.query.filter(
-            Task.user_id == user_id,
-            Task.due_date != None,             #must have a due date set.
-            Task.due_date < today_start,       #due date is in the past.
-            Task.status.notin_([StatusEnum.COMPLETED, StatusEnum.CANCELLED])
-        ).order_by(Task.due_date.asc()).all()
 
-        data = [t.to_dict() for t in overdue_tasks]     #sort soonest-overdue first, fetch all results.
+    try:
+        # Fetch all tasks for the user
+        tasks = Task.query.filter(
+            Task.user_id == user_id,
+            Task.status.notin_([StatusEnum.COMPLETED, StatusEnum.CANCELLED]),
+            Task.due_date != None
+        ).all()
+
+        # Filter overdue using your model’s timezone-safe logic
+        overdue_tasks = [t for t in tasks if t.is_overdue()]
+
+        data = [t.to_dict() for t in overdue_tasks]
+
         logger.info(f"Overdue tasks fetched - count: {len(data)} for user {user_id}")
         return success_response(data=data, message="Overdue tasks fetched")
+
     except Exception as e:
-        logger.error(f"Failed to fetch overdue tasks for user {user_id}.")
+        logger.error(f"Failed to fetch overdue tasks for user {user_id}: {str(e)}")
         return error_response(f"Failed to fetch overdue tasks: {str(e)}", 500)
 
-
-#**************************************************************************************************
-
-# GET /today - tasks due today
-@task_bp.route('/today', methods=['GET'])
-@jwt_required()
-def get_today_tasks():
-    user_id = get_jwt_identity()
-    logger.info(f"Fetching today's tasks for user_id: {user_id}")
-        
-    try:
-        today = date.today()
-        today_start = datetime.combine(today, datetime.min.time()).replace(tzinfo=timezone.utc)
-        today_end = datetime.combine(today, datetime.max.time()).replace(tzinfo=timezone.utc)
-        today_tasks = Task.query.filter(
-            Task.user_id == user_id,
-            Task.due_date != None,
-            Task.due_date >= today_start,
-            Task.due_date <= today_end
-        ).order_by(Task.due_date.asc()).all()
-
-        data = [t.to_dict() for t in today_tasks]
-        logger.info(f"Today's tasks fetched - count: {len(data)} for user {user_id}")
-        return success_response(data=data, message="Today's tasks fetched")
-    except Exception as e:
-        logger.error(f"Failed to fetch today's tasks for user {user_id}.")
-        return error_response(f"Failed to fetch today's tasks: {str(e)}", 500)
-
-
-#**************************************************************************************************
-
-# GET /stats - simple stats (counts by status + overdue count)
-@task_bp.route('/stats', methods=['GET'])
-@jwt_required()
-def get_task_stats():
-    user_id = get_jwt_identity()
-    logger.info(f"Fetching task statistics for user_id: {user_id}")
-    
-    try:
-        # Count tasks grouped by status
-        status_counts = db.session.query(
-            Task.status, func.count(Task.task_id)
-        ).filter_by(user_id=user_id).group_by(Task.status).all()   
-
-        # Build dict: { 'PENDING': 10, 'COMPLETED': 4, ... }
-        status_summary = {status.value 
-                            if hasattr(status, 'value') 
-                            else str(status): 
-                            count
-                        for status, count in status_counts}
-
-        # total overdue
-        today_start = datetime.combine(date.today(), datetime.min.time()).replace(tzinfo=timezone.utc)
-        overdue_count = Task.query.filter(
-            Task.user_id == user_id,
-            Task.due_date != None,
-            Task.due_date < today_start,
-            Task.status.notin_([StatusEnum.COMPLETED, StatusEnum.CANCELLED])
-        ).count()
-
-        logger.info(f"Task stats fetched for user {user_id} - overdue: {overdue_count}")
-        return success_response(
-            data={
-                "status_counts": status_summary,
-                "overdue_count": overdue_count
-            },
-            message="Task stats fetched"
-        )
-    except Exception as e:
-        logger.error(f"Failed to fetch stats for user {user_id}.")
-        return error_response(f"Failed to fetch stats: {str(e)}", 500)
-
-
-#**************************************************************************************************
-
-# GET /recent - recent tasks created (optionally limit via ?limit=5)
-@task_bp.route('/recent', methods=['GET'])
->>>>>>> Stashed changes
-@jwt_required()
-def get_overdue_tasks():
-    user_id = get_jwt_identity()
-    logger.info(f"Fetching overdue tasks for user id: {user_id}")
-        
-    try:
-        # Fetch tasks that belong to user, have a due_date before today,
-        # and are not COMPLETED or CANCELLED
-        overdue_tasks = Task.query.filter(
-            Task.user_id == user_id,
-            Task.due_date != None,             #must have a due date set.
-            Task.due_date < date.today(),      #due date is in the past.
-            Task.status.notin_([StatusEnum.COMPLETED, StatusEnum.CANCELLED])
-        ).order_by(Task.due_date.asc()).all()
-
-        data = [t.to_dict() for t in overdue_tasks]     #sort soonest-overdue first, fetch all results.
-        logger.info(f"Overdue tasks fetched - count: {len(data)} for user {user_id}")
-        return success_response(data=data, message="Overdue tasks fetched")
-    except Exception as e:
-        logger.error(f"Failed to fetch overdue tasks for user {user_id}.")
-        return error_response(f"Failed to fetch overdue tasks: {str(e)}", 500)
 
 
 #**************************************************************************************************
@@ -489,23 +383,26 @@ def update_task(task_id):
 
         if data.title is not None:
             task.title = data.title
-            updated_fields.append('title')
         if data.description is not None:
             task.description = data.description
-            updated_fields.append('description')
         if data.status is not None:
             task.status = data.status
-            updated_fields.append('status')
+            task.status = StatusEnum(data.status.upper())
         if data.priority is not None:
             task.priority = data.priority
-            updated_fields.append('priority')
+            task.priority = PriorityEnum(data.priority.upper())
         if data.due_date is not None:
             task.due_date = data.due_date
-            updated_fields.append('due_date')
-        
+
+ 
+        if image_urls:
+            if not task.images:
+                task.images = []
+            task.images.extend(image_urls)
+            flag_modified(task, "images")
         db.session.commit()
 
-        logger.info(f"Task {task_id} updated successfully for user id {user_id}, fields: {updated_fields}")
+        logger.info(f"Task {task_id} updated successfully for user id {user_id}, fields: {task}")
         return success_response(
             data=task.to_dict(),
             message='Task updated successfully'
