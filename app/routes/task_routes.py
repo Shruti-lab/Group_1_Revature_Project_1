@@ -17,12 +17,11 @@ logger = logging.getLogger(__name__)
 
 
 # Base url:- user/tasks
-# Base url:- user/tasks
 
 #**************************************************************************************************
 # Get all tasks for the user
 @task_bp.route('/',methods=['GET'])
-@jwt_required()     #Protects the route — user must be authenticated.
+@jwt_required()     
 def get_tasks():
     user_id = get_jwt_identity()  #Retrieves the identity stored inside the JWT,get users task
     logger.info(f"Fetching tasks for user id: {user_id}")
@@ -344,13 +343,13 @@ def create_task():
         )
     
     except ValidationError as e:
-        first_error = e.errors()[0]
-        message = first_error.get('msg', 'Invalid input')
-        return error_response(message, 400)
+        logger.warning(f"Task creation pydantic validation failed for user {user_id}.")
+        return error_response(message=str(e), status_code=400)
     
     except Exception as e:
         db.session.rollback()
-        return error_response(f'Failed to create task: {str(e)}', 500)
+        logger.error(f"Failed to create task for user {user_id}.")
+        return error_response(f"Failed to create task: {str(e)}", 500)
 
 
 
