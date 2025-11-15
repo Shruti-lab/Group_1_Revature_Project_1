@@ -323,7 +323,7 @@ def create_task():
             image_urls.append(url)
 
         # Create new task
-        user_id = get_jwt_identity()
+       
         new_task = Task(
             title=data.title,
             description=data.description,
