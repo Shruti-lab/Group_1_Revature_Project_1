@@ -1,6 +1,6 @@
 from app import db 
 import enum
-from datetime import datetime, timezone
+from datetime import datetime, date, timezone
 
 class PriorityEnum(enum.Enum):
     LOW = 'LOW'
@@ -9,7 +9,6 @@ class PriorityEnum(enum.Enum):
 
 class StatusEnum(enum.Enum):
     PENDING = 'PENDING'
-    IN_PROGRESS = 'IN_PROGRESS'
     COMPLETED = 'COMPLETED'
     CANCELLED = 'CANCELLED'
 
@@ -25,6 +24,9 @@ class Task(db.Model):
 
     # Foreign key
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+
+    # New field: images (store array of S3 URLs)
+    images = db.Column(db.JSON, default=[]) 
 
     def is_overdue(self):
         """Check if task is overdue (timezone-aware comparison, correct enum checks)"""
@@ -56,7 +58,8 @@ class Task(db.Model):
             'priority': self.priority.value if self.priority else None,
             'status': self.status.value if self.status else None,
             'user_id': self.user_id,
-            'is_overdue': self.is_overdue() if self.due_date else False
+            'images': self.images, 
+            'is_overdue': self.is_overdue()
         }
 
     def __repr__(self):

@@ -1,5 +1,3 @@
-<<<<<<< Updated upstream
-=======
 # 🧭 TaskFlow API – RESTful Task Management System
 
 ### 📘 Overview
@@ -182,7 +180,7 @@ python app/cli/cli.py signup --name <NAME> --email <EMAIL> --password <PASSWORD>
 Logs in a user and stores the JWT token in `token.txt`.
 
 ```bash
-http://127.0.0.1:5000/api/tasks
+python app/cli/cli.py login --email <EMAIL> --password <PASSWORD>
 ```
 
 ### 📝 Task Commands
@@ -265,4 +263,3 @@ This project demonstrates **intermediate-to-advanced Flask proficiency**, focusi
 This project is open-sourced under the **MIT License**.
 
 ---
->>>>>>> Stashed changes

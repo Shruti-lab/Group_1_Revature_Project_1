@@ -3,3 +3,5 @@
 __pycache__
 migrations/
 instance/
+config.json
+logs
