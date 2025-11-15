@@ -22,13 +22,13 @@ def test_client():
         db.create_all()
         client = app.test_client()
 
-        # ✅ Create a default user for testing
+
         user = User(name="Test User", email="test@example.com")
         user.set_password("password123")
         db.session.add(user)
         db.session.commit()
 
-        yield client, app, user   # ✅ return exactly 3 values
+        yield client, app, user  
 
         db.session.remove()
         db.drop_all()
@@ -40,3 +40,20 @@ def auth_header(test_client):
     client, app, user = test_client
     token = generate_jwt(user_id=str(user.user_id))
     return {"Authorization": f"Bearer {token}"}
+
+@pytest.fixture
+def another_user_token(test_client):
+    """Create another user and return their auth token."""
+    client, app, _ = test_client
+    with app.app_context():
+        another_user = User(
+            name="Second User",
+            email="second@example.com",
+            password_hash="hashedpassword"  # or bcrypt.hashpw if needed
+        )
+        db.session.add(another_user)
+        db.session.commit()
+
+        token = generate_jwt(user_id=str(another_user.user_id))
+
+        return {"Authorization": f"Bearer {token}"}
