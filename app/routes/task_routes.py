@@ -6,8 +6,9 @@ from app.schema.task_schema import TaskCreateSchema, TaskReadSchema, TaskUpdateS
 from app.utils.response import success_response, error_response
 from pydantic import ValidationError
 from flask_jwt_extended import get_jwt_identity, jwt_required
-from datetime import date, datetime
+from datetime import date, datetime,timezone
 from sqlalchemy import func
+from app.utils.s3_helper import upload_to_s3,delete_from_s3
 import logging
 
 task_bp = Blueprint("task_bp",__name__)
@@ -16,12 +17,11 @@ logger = logging.getLogger(__name__)
 
 
 # Base url:- user/tasks
-# Base url:- user/tasks
 
 #**************************************************************************************************
 # Get all tasks for the user
 @task_bp.route('/',methods=['GET'])
-@jwt_required()     #Protects the route — user must be authenticated.
+@jwt_required()     
 def get_tasks():
     user_id = get_jwt_identity()  #Retrieves the identity stored inside the JWT,get users task
     logger.info(f"Fetching tasks for user id: {user_id}")
@@ -125,23 +125,27 @@ def get_one_task(task_id):
 def get_overdue_tasks():
     user_id = get_jwt_identity()
     logger.info(f"Fetching overdue tasks for user id: {user_id}")
-        
-    try:
-        # Fetch tasks that belong to user, have a due_date before today,
-        # and are not COMPLETED or CANCELLED
-        overdue_tasks = Task.query.filter(
-            Task.user_id == user_id,
-            Task.due_date != None,             #must have a due date set.
-            Task.due_date < date.today(),      #due date is in the past.
-            Task.status.notin_([StatusEnum.COMPLETED, StatusEnum.CANCELLED])
-        ).order_by(Task.due_date.asc()).all()
 
-        data = [t.to_dict() for t in overdue_tasks]     #sort soonest-overdue first, fetch all results.
+    try:
+        # Fetch all tasks for the user
+        tasks = Task.query.filter(
+            Task.user_id == user_id,
+            Task.status.notin_([StatusEnum.COMPLETED, StatusEnum.CANCELLED]),
+            Task.due_date != None
+        ).all()
+
+        # Filter overdue using your model’s timezone-safe logic
+        overdue_tasks = [t for t in tasks if t.is_overdue()]
+
+        data = [t.to_dict() for t in overdue_tasks]
+
         logger.info(f"Overdue tasks fetched - count: {len(data)} for user {user_id}")
         return success_response(data=data, message="Overdue tasks fetched")
+
     except Exception as e:
         logger.error(f"Failed to fetch overdue tasks for user {user_id}.")
         return error_response(f"Failed to fetch overdue tasks: {str(e)}", 500)
+
 
 
 #**************************************************************************************************
@@ -299,7 +303,7 @@ def get_upcoming_tasks():
 
 
 # Create a new task
-@task_bp.route('/',methods=['POST'])
+@task_bp.route('/', methods=['POST'])
 @jwt_required()
 def create_task():
     user_id = get_jwt_identity()
@@ -307,18 +311,26 @@ def create_task():
 
     try:
         # Validate request data
-        payload = request.get_json()
-        data = TaskCreateSchema(**payload)
-        
+        data = TaskCreateSchema(**request.form.to_dict())  
+
+        # Handle multiple files
+        files = request.files.getlist("images")  
+        image_urls = []
+
+        for file in files:
+            url = upload_to_s3(file) 
+            image_urls.append(url)
+
         # Create new task
-        user_id = get_jwt_identity()
+       
         new_task = Task(
             title=data.title,
             description=data.description,
-            status=data.status,
+            status=StatusEnum.PENDING,
             priority=data.priority,
             due_date=data.due_date,
-            user_id=user_id
+            user_id=user_id,
+            images=image_urls  
         )
         db.session.add(new_task)
         db.session.commit()
@@ -331,20 +343,20 @@ def create_task():
         )
     
     except ValidationError as e:
-        first_error = e.errors()[0]
-        message = first_error.get('msg', 'Invalid input')
-        return error_response(message, 400)
+        logger.warning(f"Task creation pydantic validation failed for user {user_id}.")
+        return error_response(message=str(e), status_code=400)
     
     except Exception as e:
         db.session.rollback()
-        return error_response(f'Failed to create task: {str(e)}', 500)
+        logger.error(f"Failed to create task for user {user_id}.")
+        return error_response(f"Failed to create task: {str(e)}", 500)
 
 
 
 
+from sqlalchemy.orm.attributes import flag_modified
 
-# Update one task of the user
-@task_bp.route('/<int:task_id>',methods=['PUT'])
+@task_bp.route('/<int:task_id>', methods=['PUT'])
 @jwt_required()
 def update_task(task_id):
     user_id = get_jwt_identity()
@@ -353,35 +365,43 @@ def update_task(task_id):
     try:
         # Find task
         task = Task.query.filter_by(task_id=task_id, user_id=user_id).first()
-        
+
         if not task:
             logger.warning(f"Task not found for update - task_id: {task_id}, user_id: {user_id}")
             return error_response('Task not found', 404)
-        
-        # Validate request data
-        data = TaskUpdateSchema(**request.get_json())
 
-        updated_fields = []
-        # Update task fields
+        data = TaskUpdateSchema(**request.form.to_dict())
+
+        files = request.files.getlist("images")
+        image_urls = []
+        for file in files:
+            if file and file.filename:
+                url = upload_to_s3(file)
+                if url:
+                    image_urls.append(url)
+
         if data.title is not None:
             task.title = data.title
-            updated_fields.append('title')
         if data.description is not None:
             task.description = data.description
-            updated_fields.append('description')
         if data.status is not None:
             task.status = data.status
-            updated_fields.append('status')
+            task.status = StatusEnum(data.status.upper())
         if data.priority is not None:
             task.priority = data.priority
-            updated_fields.append('priority')
+            task.priority = PriorityEnum(data.priority.upper())
         if data.due_date is not None:
             task.due_date = data.due_date
-            updated_fields.append('due_date')
-        
+
+ 
+        if image_urls:
+            if not task.images:
+                task.images = []
+            task.images.extend(image_urls)
+            flag_modified(task, "images")
         db.session.commit()
 
-        logger.info(f"Task {task_id} updated successfully for user id {user_id}, fields: {updated_fields}")
+        logger.info(f"Task {task_id} updated successfully for user id {user_id}, fields: {task}")
         return success_response(
             data=task.to_dict(),
             message='Task updated successfully'
@@ -423,6 +443,9 @@ def delete_task(task_id):
             logger.warning(f"Task not found for deletion - task_id: {task_id}, user_id: {user_id}")
             return error_response('Task not found', 404)
         
+        if task.images:
+            delete_from_s3(task.images)
+
         db.session.delete(task)
         db.session.commit()
 
@@ -458,6 +481,8 @@ def bulk_delete():
             return error_response("No valid tasks found to delete", 404)
 
         for task in tasks:
+            if task.images:
+                 delete_from_s3(task.images)
             db.session.delete(task)
         db.session.commit()
 

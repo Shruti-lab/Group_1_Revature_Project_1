@@ -15,6 +15,7 @@ class User(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    sns_topic_arn = db.Column(db.String(255), nullable=True)
     tasks = db.relationship('Task', backref='user', lazy=True, cascade='all,delete')
 
     def set_password(self, password):
