@@ -26,7 +26,7 @@ def check_subscription_status(sns, topic_arn, email):
     try:
         subs = sns.list_subscriptions_by_topic(TopicArn=topic_arn)
     except Exception:
-        return "none"   # Invalid topic = no subscription
+        return "none"  
 
     for sub in subs.get("Subscriptions", []):
         if sub["Endpoint"].lower() == email.lower():
@@ -59,39 +59,23 @@ def subscribe():
 
         sns = boto3.client("sns", region_name=os.getenv("AWS_REGION", "us-east-1"))
 
-        # -------------------------------------------
-        # 1️⃣ Load topic ARN from DB
-        # -------------------------------------------
         topic_arn = user.sns_topic_arn
 
-        # -------------------------------------------
-        # 2️⃣ Validate topic ARN
-        #    Regenerate if:
-        #      - Missing
-        #      - Wrong format
-        #      - Does NOT exist on AWS
-        # -------------------------------------------
         if (
             not topic_arn
             or not isinstance(topic_arn, str)
             or not topic_arn.startswith("arn:aws:sns")
-            or not topic_exists(sns, topic_arn)  # <---- Critical Fix
+            or not topic_exists(sns, topic_arn)
         ):
-            # Create new topic
             topic = sns.create_topic(Name=f"user_{user.user_id}_notifications")
             topic_arn = topic.get("TopicArn")
 
-            # Validate again (failsafe)
             if not topic_arn or not topic_arn.startswith("arn:aws:sns"):
                 raise Exception("SNS returned an invalid TopicArn")
 
-            # Save into DB
             user.sns_topic_arn = topic_arn
             db.session.commit()
 
-        # -------------------------------------------
-        # 3️⃣ Check subscription status
-        # -------------------------------------------
         status = check_subscription_status(sns, topic_arn, user.email)
 
         if status == "confirmed":
@@ -108,9 +92,6 @@ def subscribe():
                 "subscription": "Email pending confirmation"
             }), 200
 
-        # -------------------------------------------
-        # 4️⃣ Create subscription if none
-        # -------------------------------------------
         sub = sns.subscribe(
             TopicArn=topic_arn,
             Protocol="email",
@@ -149,7 +130,6 @@ def unsubscribe():
                 "error": "You are not subscribed to any notifications.",
             }), 400
 
-        # Validate topic ARN format
         if not topic_arn.startswith("arn:aws:sns"):
             return jsonify({
                 "success": False,
@@ -158,9 +138,7 @@ def unsubscribe():
 
         sns = boto3.client("sns", region_name="us-east-1")
 
-        # Ensure topic exists on AWS
         if not topic_exists(sns, topic_arn):
-            # Clear TopicArn from DB if AWS topic deleted
             user.sns_topic_arn = None
             db.session.commit()
 
@@ -170,10 +148,8 @@ def unsubscribe():
                 "action_required": "Please subscribe again."
             }), 400
 
-        # Get list of subscriptions
         subs = sns.list_subscriptions_by_topic(TopicArn=topic_arn)
 
-        # Find user's subscription ARN
         subscription_arn = None
         for sub in subs.get("Subscriptions", []):
             if sub["Endpoint"].lower() == user.email.lower():
@@ -193,11 +169,8 @@ def unsubscribe():
                 "info": "You cannot unsubscribe until the email subscription is confirmed."
             }), 400
 
-        # Unsubscribe the user
         sns.unsubscribe(SubscriptionArn=subscription_arn)
 
-        # Clear topic ARN from DB (your requirement depends — optional)
-        # If you want to let the user resubscribe again cleanly:
         user.sns_topic_arn = None
         db.session.commit()
 
@@ -247,9 +220,6 @@ def get_pending_notifications():
 
         sns = boto3.client("sns", region_name=os.getenv("AWS_REGION", "us-east-1"))
 
-        # -------------------------------
-        # 🔍 CHECK SUBSCRIPTION STATUS
-        # -------------------------------
         try:
             subs = sns.list_subscriptions_by_topic(TopicArn=user.sns_topic_arn)
         except Exception:
@@ -270,7 +240,6 @@ def get_pending_notifications():
                     subscription_status = "confirmed"
                 break
 
-        # ❌ NOT SUBSCRIBED AT ALL
         if subscription_status == "none":
             return jsonify({
                 "success": False,
@@ -278,7 +247,6 @@ def get_pending_notifications():
                 "action_required": "Go to /subscribe and confirm your email subscription."
             }), 400
 
-        # ❌ SUBSCRIPTION NOT CONFIRMED
         if subscription_status == "pending":
             return jsonify({
                 "success": False,
@@ -287,9 +255,6 @@ def get_pending_notifications():
                 "info": "Only after confirming your subscription will you see pending tasks."
             }), 400
 
-        # -------------------------------
-        # ✔ SUBSCRIBED & CONFIRMED
-        # -------------------------------
 
         if not tasks:
             return jsonify({
@@ -299,7 +264,6 @@ def get_pending_notifications():
                 "pending_tasks": []
             }), 200
 
-        # Prepare message
         message_lines = [
             f"You have {len(tasks)} task(s) due within 24 hours:\n"
         ]
@@ -360,9 +324,6 @@ def send_notification():
  
         sns = boto3.client("sns", region_name=os.getenv("AWS_REGION", "us-east-1"))
  
-        # ------------------------------------
-        # 🔍 CHECK SUBSCRIPTION STATUS
-        # ------------------------------------
         try:
             subs = sns.list_subscriptions_by_topic(TopicArn=user.sns_topic_arn)
         except Exception:
@@ -383,7 +344,6 @@ def send_notification():
                     subscription_status = "confirmed"
                 break
  
-        # ❌ No subscription found
         if subscription_status == "none":
             return jsonify({
                 "success": False,
@@ -391,7 +351,6 @@ def send_notification():
                 "action_required": "Go to /subscribe to subscribe and confirm your email."
             }), 400
  
-        # ❌ Email not confirmed yet
         if subscription_status == "pending":
             return jsonify({
                 "success": False,
@@ -399,10 +358,7 @@ def send_notification():
                 "action_required": "Check your email and click 'Confirm subscription'.",
                 "info": "You must confirm before receiving notifications."
             }), 400
- 
-        # ------------------------------------
-        # ✔ SUBSCRIBED & CONFIRMED — SEND MSG
-        # ------------------------------------
+
  
         data = request.get_json(silent=True) or {}
         message = (

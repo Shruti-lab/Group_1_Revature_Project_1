@@ -24,32 +24,20 @@ def start_scheduler(flask_app):
                 now = datetime.utcnow()
                 upcoming_boundary = now + timedelta(days=1)
 
-                # Fetch all users
                 users = User.query.all()
 
                 for user in users:
                     if not user.sns_topic_arn:
                         continue
 
-                    # Fetch user's tasks due within 24 hours
-                    # tasks = Task.query.filter(
-                    #     Task.user_id == user.user_id,
-                    #     Task.status.in_([StatusEnum.PENDING, StatusEnum.IN_PROGRESS]),
-                    #     Task.due_date != None,
-                    #     Task.due_date <= upcoming_boundary
-                    # ).order_by(Task.due_date).all()
-
-                    # if not tasks:
-                    #     continue
                     tasks = Task.query.filter(
                     Task.user_id == user.user_id,
                     Task.status.in_([StatusEnum.PENDING]),
                     Task.due_date != None,
                     Task.due_date <= upcoming_boundary,
-                    Task.due_date >= now  # Avoid past-due duplicates
+                    Task.due_date >= now  
                     ).all()
 
-                    # Build message
                     message_lines = [f"[REMINDER] You have {len(tasks)} task(s) due soon!\n"]
                     for t in tasks:
                         message_lines.append(
@@ -58,7 +46,6 @@ def start_scheduler(flask_app):
 
                     message = "\n".join(message_lines)
 
-                    # Publish to SNS
                     try:
                         sns = boto3.client("sns", region_name=os.getenv("AWS_REGION", "us-east-1"))
                         sns.publish(
@@ -75,7 +62,6 @@ def start_scheduler(flask_app):
             except Exception as e:
                 logger.error(f"Error in scheduler job: {str(e)}", exc_info=True)
 
-    # Schedule job to run every day at 09:00 AM (you can change this)
     scheduler.add_job(job_wrapper, 'cron', hour=7, minute=0)
 
     # Uncomment for testing: run every minute

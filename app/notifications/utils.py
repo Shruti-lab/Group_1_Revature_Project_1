@@ -17,7 +17,6 @@ def build_tasks_message(tasks):
         return None
     lines = ["Here are your upcoming / overdue tasks:"]
     for t in tasks:
-        # ensure due_date is string
         lines.append(f"- {t.get('title')} (due: {t.get('due_date')})")
     return "\n".join(lines)
 

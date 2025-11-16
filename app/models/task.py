@@ -21,28 +21,20 @@ class Task(db.Model):
     due_date = db.Column(db.DateTime, nullable=True)
     priority = db.Column(db.Enum(PriorityEnum), default=PriorityEnum.LOW)
     status = db.Column(db.Enum(StatusEnum), default=StatusEnum.PENDING)
-
-    # Foreign key
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
-
-    # New field: images (store array of S3 URLs)
     images = db.Column(db.JSON, default=[]) 
 
     def is_overdue(self):
         """Check if task is overdue (timezone-aware comparison, correct enum checks)"""
-        # If there's no due date or task already finished/cancelled => not overdue
         if not self.due_date:
             return False
 
-        # self.status is an enum member; compare to enum members (not .value)
         if self.status in (StatusEnum.COMPLETED, StatusEnum.CANCELLED):
             return False
 
-        # Ensure both sides are timezone-aware datetimes in UTC
         now = datetime.now(timezone.utc)
         due = self.due_date
         if due.tzinfo is None:
-            # if stored as naive, assume UTC — safer to normalize
             due = due.replace(tzinfo=timezone.utc)
 
         return now > due
