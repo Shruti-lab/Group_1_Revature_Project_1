@@ -83,7 +83,7 @@ def get_tasks():
         )
 
     except Exception as e:
-        logger.error(f"Failed to fetch tasks for user {user_id}: {str(e)}")
+        logger.error(f"Failed to fetch tasks for user {user_id}.")
         return error_response(f"Failed to fetch tasks: {str(e)}", 500)
 
 
@@ -317,9 +317,17 @@ def create_task():
         files = request.files.getlist("images")  
         image_urls = []
 
-        for file in files:
-            url = upload_to_s3(file) 
-            image_urls.append(url)
+        if files:
+            try:
+                for file in files:
+                    url = upload_to_s3(file) 
+                    if url:
+                        image_urls.append(url)
+                    else:
+                        raise Exception(f"Error uploading file {file.name} to S3.")
+            except Exception as e:
+                logger.error(f"File upload failed during task creation for user {user_id}.")
+                return error_response(f"File upload failed: {str(e)}", 500)
 
         # Create new task
        

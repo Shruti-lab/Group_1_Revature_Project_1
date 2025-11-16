@@ -2,6 +2,9 @@ import boto3
 import os
 from botocore.exceptions import NoCredentialsError
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
  
 def upload_to_s3(file, folder="uploads"):
     try:
@@ -18,7 +21,7 @@ def upload_to_s3(file, folder="uploads"):
  
         filename = f"{folder}/{datetime.utcnow().timestamp()}_{file.filename}"
  
-        print(f"Uploading {file.filename} to bucket {bucket_name}...")
+        logger.info(f"Uploading {file.filename} to bucket {bucket_name}.")
  
         s3.upload_fileobj(
             Fileobj=file,
@@ -28,14 +31,14 @@ def upload_to_s3(file, folder="uploads"):
         )
  
         url = f"https://{bucket_name}.s3.{os.getenv('AWS_S3_REGION')}.amazonaws.com/{filename}"
-        print(f"Uploaded successfully: {url}")
+        logger.info(f"Uploaded {file.filename} successfully: {url}")
         return url
  
     except NoCredentialsError:
-        print("AWS credentials not found.")
+        logger.error("AWS credentials not found.")
         return None
     except Exception as e:
-        print(f"Error uploading to S3: {e}")
+        logger.error(f"Error uploading to S3: {e}")
         return None
  
  

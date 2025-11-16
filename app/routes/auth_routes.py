@@ -3,6 +3,7 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from app import db,bcrypt
 from app.models import User
 from app.schema.auth_schema import SignUpSchema,LoginSchema
+from app.utils.response import success_response, error_response
 from pydantic import ValidationError
 from app.utils.jwtUtil import generate_jwt
 import logging
@@ -20,7 +21,7 @@ def signup():
         logger.info(f"Signup pydantic data validation successful for email: {validated_data.email}")
     except ValidationError as e:
         logger.warning(f"Signup pydantic validation failed: {e.errors()}")
-        return jsonify({"errors": e.errors()}), 400
+        return error_response(f"Signup pydantic validation failed: {str(e)}", 400)
     
     existing_user = User.query.filter_by(email=validated_data.email).first()
     if existing_user:
@@ -36,8 +37,8 @@ def signup():
         return jsonify({"message": "User registered successfully"}), 201
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Database error during signup: {str(e)}")
-        return jsonify({"message": "Registration failed"}), 500
+        logger.error(f"Database error during signup.")
+        return error_response(f"Registration failed: {str(e)}", 500)
 
 
 
@@ -50,8 +51,8 @@ def login():
         validated_data = LoginSchema(**data)
         logger.info(f"Login pydantic data validation successful for email: {validated_data.email}")
     except ValidationError as e:
-        logger.warning(f"Login validation failed: {e.errors()}")
-        return jsonify({"errors": e.errors()}), 400
+        logger.warning(f"Login validation failed.")
+        return error_response(f"errors: {e.errors()}",400)
 
     user = User.query.filter_by(email=validated_data.email).first()
     if not user or not user.check_password(validated_data.password):
@@ -71,8 +72,8 @@ def login():
             }
         }), 200
     except Exception as e:
-        logger.error(f"JWT generation failed for user {user.email}: {str(e)}")
-        return jsonify({"message": "Login failed"}), 500
+        logger.error(f"JWT generation failed for user {user.email}")
+        return error_response(f"Login failed: {str(e)}",500)
 
 
 
@@ -122,8 +123,8 @@ def update_current_user():
         return jsonify({"message": "User updated successfully"}), 200
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Failed to update user {user_id}: {str(e)}")
-        return jsonify({"message": "Update failed"}), 500
+        logger.error(f"Failed to update user {user_id}.")
+        return error_response(f"Update failed: {str(e)}",500)
 
 
 
