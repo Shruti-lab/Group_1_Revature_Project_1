@@ -6,7 +6,7 @@ from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from app.config import Config
 from .utils.logger import setup_logging
-
+from flask_cors import CORS
 
 db = SQLAlchemy()
 bcrypt = Bcrypt()
@@ -16,6 +16,15 @@ jwt = JWTManager()
 def create_app():
     app = Flask(__name__)
 
+    CORS(
+    app,
+    resources={r"/auth/*": {"origins": "http://localhost:5173"},
+               r"/user/*": {"origins": "http://localhost:5173"}},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS" ]
+    )
+    
     # loading the config file
     app.config.from_object(Config)
 
