@@ -13,3 +13,5 @@ class TestingConfig:
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY','secret-key')
+    LOG_FILE = os.getenv('LOG_FILE')
+    LOG_LEVEL='INFO'

@@ -3,21 +3,11 @@ import requests
 import json
 import os
 from datetime import datetime
-
+from app.cli.util.config_util import save_token, load_token ,load_config,clear_token # ✅ import utilities
 API_URL = "http://127.0.0.1:5000"     
 TOKEN_FILE = "token.txt"               
 
 # ---- USER COMMANDS ----
-
-def save_token(token):
-    with open(TOKEN_FILE, "w") as f:
-        f.write(token)
-
-def load_token():
-    if not os.path.exists(TOKEN_FILE):
-        return None
-    with open(TOKEN_FILE, "r") as f:
-        return f.read().strip()
 
 @click.group()
 def cli():
@@ -103,6 +93,27 @@ def update_user(name, password):
         click.echo("Server is not running. Start Flask and try again.")
     except Exception as e:      
         click.echo(f"An error occurred: {e}")
+
+@cli.command()
+def logout():
+    """Logout user and remove saved JWT token."""
+    try:
+        config = load_config()
+
+        if "token" not in config:
+            click.echo(" No token found. You are already logged out.")
+            return
+        confirm = click.confirm(f"Are you sure you want to logout?", default=False)
+        if not confirm:
+            click.echo("Cancelled.")
+            return
+        clear_token()
+        click.echo("Logged out successfully. Token removed.")
+    except requests.exceptions.ConnectionError:
+        click.echo("Server is not running. Start Flask and try again.")
+    except Exception as e:
+        click.echo(f"An error occurred during logout: {e}")
+
 
 # ---- TASK COMMANDS ----
 
