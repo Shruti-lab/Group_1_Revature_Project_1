@@ -9,3 +9,6 @@ def register_routes(app):
     app.register_blueprint(auth_bp, url_prefix='/auth')
     # app.register_blueprint(user_bp, url_prefix='/user')
     app.register_blueprint(task_bp, url_prefix='/user/tasks')
+    # Also register at /users/tasks for backward compatibility with unique name
+    app.register_blueprint(task_bp, url_prefix='/users/tasks', name='task_bp_plural')
+

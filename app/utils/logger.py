@@ -18,7 +18,9 @@ def setup_logging(app):
     formatter = logging.Formatter(fmt)
 
     # Get logs file path from config
-    log_file_path = app.config.get('LOG_FILE','logs/app.log')
+    log_file_path = app.config.get("LOG_FILE", "logs/app.log")
+    if not isinstance(log_file_path, str):
+        log_file_path = "logs/app.log"
 
     # Get absolute file path of logs file
     project_root = os.path.dirname(app.root_path)
@@ -60,18 +62,4 @@ def setup_logging(app):
     logging.getLogger('werkzeug').propagate = False
 
     app.logger.info("Logging setup complete - logs will be written to CLI and file")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

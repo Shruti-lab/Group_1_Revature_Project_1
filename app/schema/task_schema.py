@@ -1,6 +1,6 @@
 from pydantic import BaseModel, validator , Field
-from typing import Optional
-from datetime import date
+from typing import Optional, List
+from datetime import date, datetime
 from app.models.task import PriorityEnum, StatusEnum
 
 
@@ -8,8 +8,9 @@ class TaskCreateSchema(BaseModel):
     title: str = Field(...,min_length=1,max_length = 200)
     description: Optional[str] = None
     priority: str = PriorityEnum.LOW.value
-    start_date: Optional[date] = None
-    due_date: Optional[date] = None
+    start_date: Optional[datetime] = None
+    due_date: Optional[datetime] = None
+    images: Optional[List[str]] = []  
     
     @validator('priority')
     def validate_priority(cls, value):
@@ -19,7 +20,7 @@ class TaskCreateSchema(BaseModel):
     
     @validator('due_date')
     def validate_due_date(cls, value):
-        if value and value < date.today():
+        if value and value < datetime.now():
             raise ValueError('Due date cannot be in the past.')
         return value
 
@@ -30,7 +31,8 @@ class TaskUpdateSchema(BaseModel):
     description: Optional[str] = None
     status: Optional[str] = None
     priority: Optional[str] = None 
-    due_date: Optional[date] = None
+    due_date: Optional[datetime] = None
+    images: Optional[List[str]] = [] 
     
     @validator('status')
     def validate_status(cls, v):
@@ -50,12 +52,9 @@ class TaskReadSchema(BaseModel):
     task_id: int
     title: str
     description: Optional[str]
-    start_date: Optional[date]
-    due_date: Optional[date]
+    start_date: datetime
+    due_date: Optional[datetime] = None
     status: str = StatusEnum.PENDING.value
     priority: str = PriorityEnum.LOW.value
     user_id: int
-
-
-
-
+    images: List[str] = []
