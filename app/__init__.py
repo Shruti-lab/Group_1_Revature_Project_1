@@ -15,16 +15,7 @@ jwt = JWTManager()
 
 def create_app():
     app = Flask(__name__)
-
-    CORS(
-    app,
-    resources={r"/auth/*": {"origins": "http://localhost:5173"},
-               r"/user/*": {"origins": "http://localhost:5173"}},
-    supports_credentials=True,
-    allow_headers=["Content-Type", "Authorization"],
-    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS" ]
-    )
-    
+ 
     # loading the config file
     app.config.from_object(Config)
 
@@ -91,5 +82,13 @@ def create_app():
         "code": 500,
         "message": "An internal server error occurred."
     }), 500
-
+    CORS(
+    app,
+    resources={r"/auth/*": {"origins": "http://localhost:5173"},
+               r"/user/*": {"origins": "http://localhost:5173"},
+               r"/notifications/*": {"origins": "http://localhost:5173"}},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS" ]
+    )
     return app
