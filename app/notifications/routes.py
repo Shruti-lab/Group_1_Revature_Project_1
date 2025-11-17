@@ -107,7 +107,31 @@ def subscribe():
 
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
-    
+
+@notifications_bp.route("/subscription/status", methods=["GET"])
+@jwt_required()
+def subscription_status():
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if not user:
+            return jsonify({"success": False, "status": "none", "error": "User not found"}), 404
+
+        if not user.sns_topic_arn:
+            return jsonify({"success": True, "status": "none"}), 200
+
+        sns = boto3.client("sns", region_name=os.getenv("AWS_REGION", "us-east-1"))
+
+        status = check_subscription_status(sns, user.sns_topic_arn, user.email)
+
+        return jsonify({
+            "success": True,
+            "status": status
+        }), 200
+
+    except Exception as e:
+        return jsonify({"success": False, "status": "none", "error": str(e)}), 500
 
 @notifications_bp.route("/unsubscribe", methods=["POST"])
 @jwt_required()
