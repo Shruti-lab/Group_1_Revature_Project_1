@@ -1,11 +1,13 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify,url_for
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from app import db,bcrypt
 from app.models import User
 from app.schema.auth_schema import SignUpSchema,LoginSchema
+from app.utils.response import success_response, error_response
 from pydantic import ValidationError
 from app.utils.jwtUtil import generate_jwt
 import logging
+from app import oauth
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger(__name__)
@@ -19,7 +21,7 @@ def signup():
         logger.info(f"Signup pydantic data validation successful for email: {validated_data.email}")
     except ValidationError as e:
         logger.warning(f"Signup pydantic validation failed: {e.errors()}")
-        return jsonify({"errors": e.errors()}), 400
+        return error_response(f"Signup pydantic validation failed: {str(e)}", 400)
     
     existing_user = User.query.filter_by(email=validated_data.email).first()
     if existing_user:
@@ -35,8 +37,8 @@ def signup():
         return jsonify({"message": "User registered successfully"}), 201
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Database error during signup: {str(e)}")
-        return jsonify({"message": "Registration failed"}), 500
+        logger.error(f"Database error during signup.")
+        return error_response(f"Registration failed: {str(e)}", 500)
 
 
 
@@ -49,8 +51,8 @@ def login():
         validated_data = LoginSchema(**data)
         logger.info(f"Login pydantic data validation successful for email: {validated_data.email}")
     except ValidationError as e:
-        logger.warning(f"Login validation failed: {e.errors()}")
-        return jsonify({"errors": e.errors()}), 400
+        logger.warning(f"Login validation failed.")
+        return error_response(f"errors: {e.errors()}",400)
 
     user = User.query.filter_by(email=validated_data.email).first()
     if not user or not user.check_password(validated_data.password):
@@ -70,8 +72,8 @@ def login():
             }
         }), 200
     except Exception as e:
-        logger.error(f"JWT generation failed for user {user.email}: {str(e)}")
-        return jsonify({"message": "Login failed"}), 500
+        logger.error(f"JWT generation failed for user {user.email}")
+        return error_response(f"Login failed: {str(e)}",500)
 
 
 
@@ -121,13 +123,136 @@ def update_current_user():
         return jsonify({"message": "User updated successfully"}), 200
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Failed to update user {user_id}: {str(e)}")
-        return jsonify({"message": "Update failed"}), 500
+        logger.error(f"Failed to update user {user_id}.")
+        return error_response(f"Update failed: {str(e)}",500)
 
 
 
+# ---------- GOOGLE LOGIN ----------
+@auth_bp.route("/login/google", methods=["GET"])
+def google_login():
+    redirect_uri = url_for("auth.google_callback", _external=True)
+    return oauth.google.authorize_redirect(redirect_uri)
+
+
+@auth_bp.route("/login/google/callback", methods=["GET"])
+def google_callback():
+    token = oauth.google.authorize_access_token()
+
+    user_info = oauth.google.get("userinfo").json()   # Google returns ID token (contains email, name, sub)
+
+    if not user_info:
+        return jsonify({"message": "Google login failed"}), 400
+
+    email = user_info.get("email")
+    name = user_info.get("name")
+    provider_id = user_info.get("sub")   # Google unique ID to know that this is google providing details 
+
+    if not email:
+        return jsonify({"message": "Google login failed: Email not provided"}), 400
+
+    user = User.query.filter_by(email=email).first()  #check if user already exists
+
+    if not user:
+        #Create new user (OAuth users: no password)
+        user = User(
+            name=name,
+            email=email,
+            provider="google",
+            provider_id=provider_id
+        )
+        db.session.add(user)
+    else:
+    # user exists with the same email→ update provider :  like if person with same github emails logs in again
+        user.name = name
+        user.provider = "google"
+        user.provider_id = provider_id
+
+    db.session.commit()
+
+    access_token = generate_jwt(user_id=str(user.user_id))   #Generate JWT for login
+
+    return jsonify({
+        "message": "Google login successful",
+        "access_token": access_token,
+        "user": {
+            "user_id": user.user_id,
+            "name": user.name,
+            "email": user.email,
+            "provider": user.provider
+        }
+    }), 200
 
 
 
+# ---------- GITHUB LOGIN ----------
+@auth_bp.route("/login/github", methods=["GET"])
+def github_login():
+    redirect_uri = url_for("auth.github_callback", _external=True)
+    return oauth.github.authorize_redirect(redirect_uri)
 
+@auth_bp.route("/login/github/callback", methods=["GET"])
+def github_callback():
+    token = oauth.github.authorize_access_token()
 
+    # Get primary GitHub profile
+    user_data = oauth.github.get("user").json()
+    provider_id = str(user_data.get("id"))
+    name = user_data.get("name") or user_data.get("login")
+    email = user_data.get("email")    
+
+    if not email:
+        emails = oauth.github.get("user/emails").json()
+        email = next((e["email"] for e in emails if e.get("primary")), None)
+
+    if not email:
+        return jsonify({"message": "GitHub login failed: Email not provided"}), 400
+
+    #check if user already exists
+    user = User.query.filter_by(email=email).first()
+
+    if not user:
+        #this is used to create a new user
+        user = User(
+            name=name,
+            email=email,
+            provider="github",
+            provider_id=provider_id
+        )
+        db.session.add(user)
+    else:
+    # user exists with the same email → update provider
+        user.name = name
+        user.provider = "github"
+        user.provider_id = provider_id
+    
+    db.session.commit()
+
+    access_token = generate_jwt(user_id=str(user.user_id)) #used to generate a JWT token
+
+    return jsonify({
+        "message": "GitHub login successful",
+        "access_token": access_token,
+        "user": {
+            "user_id": user.user_id,
+            "name": user.name,
+            "email": user.email,
+            "provider": user.provider
+        }
+    }), 200
+
+@auth_bp.route("/me", methods=["GET"])
+@jwt_required()
+def me():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({"message": "User not found"}), 404
+
+    return jsonify({
+        "user_id": user.user_id,
+        "name": user.name,
+        "email": user.email,
+        "provider": user.provider
+    })
