@@ -6,6 +6,7 @@ from flask_jwt_extended import JWTManager
 from app.config import Config
 from .utils.logger import setup_logging
 from authlib.integrations.flask_client import OAuth
+from flask_cors import CORS
 
 db = SQLAlchemy()
 bcrypt = Bcrypt()
@@ -15,7 +16,7 @@ oauth = OAuth()
 
 def create_app():
     app = Flask(__name__)
-
+ 
     # loading the config file
     app.config.from_object(Config)
 
@@ -115,5 +116,13 @@ def create_app():
         "code": 500,
         "message": "An internal server error occurred."
     }), 500
-
+    CORS(
+    app,
+    resources={r"/auth/*": {"origins": "http://localhost:5173"},
+               r"/user/*": {"origins": "http://localhost:5173"},
+               r"/notifications/*": {"origins": "http://localhost:5173"}},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization"],
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS" ]
+    )
     return app
