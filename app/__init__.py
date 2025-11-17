@@ -5,7 +5,7 @@ from flask_migrate import Migrate
 from flask_jwt_extended import JWTManager
 from app.config import Config
 from .utils.logger import setup_logging
-from authlib.integrations.flask_client import OAuthfrom 
+from authlib.integrations.flask_client import OAuth
 from flask_cors import CORS
 
 db = SQLAlchemy()
