@@ -269,19 +269,3 @@ def github_callback():
     }, safe=":,{}\"")
     return redirect(f"{frontend_url}?{params}")
 
-
-@auth_bp.route("/me", methods=["GET"])
-@jwt_required()
-def me():
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-
-    if not user:
-        return jsonify({"message": "User not found"}), 404
-
-    return jsonify({
-        "user_id": user.user_id,
-        "name": user.name,
-        "email": user.email,
-        "provider": user.provider
-    })
