@@ -187,16 +187,19 @@ def google_callback():
     #     }
     # }), 200
 
-    frontend_url = "http://localhost:5173/oauth/callback"  
+    frontend_url = "http://localhost:5173/oauth/callback"
+    user_data = {
+        'user_id': user.user_id,
+        'name': user.name,
+        'email': user.email,
+        'provider': user.provider
+    }
+
     params = urlencode({
         'token': access_token,
-        'user': json.dumps({
-            'user_id': user.user_id,
-            'name': user.name,
-            'email': user.email,
-            'provider': user.provider
-        },separators=(',', ':'))
-    }, safe=":,{}\"")
+        'user': json.dumps(user_data)
+    })
+
     return redirect(f"{frontend_url}?{params}")
 
 
@@ -257,15 +260,18 @@ def github_callback():
     #     }
     # }), 200
 
-    frontend_url = "http://localhost:5173/oauth/callback"  
+    frontend_url = "http://localhost:5173/oauth/callback"
+    user_data = {
+        'user_id': user.user_id,
+        'name': user.name,
+        'email': user.email,
+        'provider': user.provider
+    }
+
     params = urlencode({
         'token': access_token,
-        'user': json.dumps({
-            'user_id': user.user_id,
-            'name': user.name,
-            'email': user.email,
-            'provider': user.provider
-        },separators=(',', ':'))
-    }, safe=":,{}\"")
+        'user': json.dumps(user_data)
+    })
+
     return redirect(f"{frontend_url}?{params}")
 
