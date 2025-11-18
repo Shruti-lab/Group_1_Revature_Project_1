@@ -10,6 +10,7 @@ import logging
 from app import oauth
 import json
 from urllib.parse import urlencode
+import os
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger(__name__)
@@ -193,7 +194,7 @@ def google_callback():
     #     }
     # }), 200
 
-    frontend_url = "http://localhost:5173/oauth/callback"
+    frontend_url = os.getenv("FRONTEND_URL") + "/oauth/callback"
     user_data = {
         'user_id': user.user_id,
         'name': user.name,
@@ -266,7 +267,7 @@ def github_callback():
     #     }
     # }), 200
 
-    frontend_url = "http://localhost:5173/oauth/callback"
+    frontend_url = os.getenv("FRONTEND_URL") + "/oauth/callback"
     user_data = {
         'user_id': user.user_id,
         'name': user.name,
