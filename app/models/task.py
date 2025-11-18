@@ -10,6 +10,7 @@ class PriorityEnum(enum.Enum):
 class StatusEnum(enum.Enum):
     PENDING = 'PENDING'
     COMPLETED = 'COMPLETED'
+    IN_PROGRESS = 'IN_PROGRESS'
     CANCELLED = 'CANCELLED'
 
 class Task(db.Model):
