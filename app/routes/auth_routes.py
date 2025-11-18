@@ -119,8 +119,14 @@ def update_current_user():
             updated_fields.append('name')
 
         if 'password' in data:
-            user.set_password(data['password'])
-            updated_fields.append('password')
+            if user.provider == "local":
+                if data['password']:  
+                    user.set_password(data['password'])
+                    updated_fields.append('password')
+            else:
+                logger.info(
+                    f"Skipping password update because user uses OAuth provider: {user.provider}"
+                )
             
         db.session.commit()
         logger.info(f"User updated successfully - user id: {user_id}, fields: {updated_fields}")
