@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify,url_for
+from flask import Blueprint, request, jsonify,url_for, redirect
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from app import db,bcrypt
 from app.models import User
@@ -8,6 +8,8 @@ from pydantic import ValidationError
 from app.utils.jwtUtil import generate_jwt
 import logging
 from app import oauth
+import json
+from urllib.parse import urlencode
 
 auth_bp = Blueprint('auth', __name__)
 logger = logging.getLogger(__name__)
@@ -91,7 +93,9 @@ def get_current_user():
     return jsonify({
         "user_id": user.user_id,
         "name": user.name,
-        "email": user.email
+        "email": user.email,
+        "provider": user.provider,     
+        "provider_id": user.provider_id
     }), 200
 
 
@@ -115,8 +119,14 @@ def update_current_user():
             updated_fields.append('name')
 
         if 'password' in data:
-            user.set_password(data['password'])
-            updated_fields.append('password')
+            if user.provider == "local":
+                if data['password']:  
+                    user.set_password(data['password'])
+                    updated_fields.append('password')
+            else:
+                logger.info(
+                    f"Skipping password update because user uses OAuth provider: {user.provider}"
+                )
             
         db.session.commit()
         logger.info(f"User updated successfully - user id: {user_id}, fields: {updated_fields}")
@@ -172,16 +182,31 @@ def google_callback():
 
     access_token = generate_jwt(user_id=str(user.user_id))   #Generate JWT for login
 
-    return jsonify({
-        "message": "Google login successful",
-        "access_token": access_token,
-        "user": {
-            "user_id": user.user_id,
-            "name": user.name,
-            "email": user.email,
-            "provider": user.provider
-        }
-    }), 200
+    # return jsonify({
+    #     "message": "Google login successful",
+    #     "access_token": access_token,
+    #     "user": {
+    #         "user_id": user.user_id,
+    #         "name": user.name,
+    #         "email": user.email,
+    #         "provider": user.provider
+    #     }
+    # }), 200
+
+    frontend_url = "http://localhost:5173/oauth/callback"
+    user_data = {
+        'user_id': user.user_id,
+        'name': user.name,
+        'email': user.email,
+        'provider': user.provider
+    }
+
+    params = urlencode({
+        'token': access_token,
+        'user': json.dumps(user_data)
+    })
+
+    return redirect(f"{frontend_url}?{params}")
 
 
 
@@ -230,29 +255,29 @@ def github_callback():
 
     access_token = generate_jwt(user_id=str(user.user_id)) #used to generate a JWT token
 
-    return jsonify({
-        "message": "GitHub login successful",
-        "access_token": access_token,
-        "user": {
-            "user_id": user.user_id,
-            "name": user.name,
-            "email": user.email,
-            "provider": user.provider
-        }
-    }), 200
+    # return jsonify({
+    #     "message": "GitHub login successful",
+    #     "access_token": access_token,
+    #     "user": {
+    #         "user_id": user.user_id,
+    #         "name": user.name,
+    #         "email": user.email,
+    #         "provider": user.provider
+    #     }
+    # }), 200
 
-@auth_bp.route("/me", methods=["GET"])
-@jwt_required()
-def me():
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
+    frontend_url = "http://localhost:5173/oauth/callback"
+    user_data = {
+        'user_id': user.user_id,
+        'name': user.name,
+        'email': user.email,
+        'provider': user.provider
+    }
 
-    if not user:
-        return jsonify({"message": "User not found"}), 404
-
-    return jsonify({
-        "user_id": user.user_id,
-        "name": user.name,
-        "email": user.email,
-        "provider": user.provider
+    params = urlencode({
+        'token': access_token,
+        'user': json.dumps(user_data)
     })
+
+    return redirect(f"{frontend_url}?{params}")
+
