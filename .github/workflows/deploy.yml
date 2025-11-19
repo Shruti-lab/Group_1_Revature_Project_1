@@ -55,7 +55,7 @@ jobs:
 
       - name: Run pytest
         run: |
-          pytest tests/ -v --cov=. --cov-report=term-missing
+          pytest tests/ -v --cov=app --cov-report=term-missing --cov-report=html
         env:
           FLASK_ENV: testing
           DB_HOST: 127.0.0.1
@@ -74,6 +74,8 @@ jobs:
           path: |
             .coverage
             htmlcov/
+          retention-days: 30
+          if-no-files-found: warn
 
   build-and-push:
     name: Build and Push to ECR
