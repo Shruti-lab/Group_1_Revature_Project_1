@@ -23,5 +23,8 @@ with app.app_context():
         print('Error during setup:', e)
 "
 
+echo "Running database migrations"
+flask db upgrade
+
 echo "Starting gunicorn server"
 exec gunicorn run:app -w 4 -b 0.0.0.0:8000 --log-file -
