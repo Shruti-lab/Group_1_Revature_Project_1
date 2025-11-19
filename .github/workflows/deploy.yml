@@ -1,0 +1,174 @@
+name: Backend CI/CD - Test and Deploy to ECR
+
+on:
+  push:
+    branches: [ deployment ]
+  pull_request:
+    branches: [ main, dev ]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: flask-app
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: test
+          MYSQL_DATABASE: test_db
+          MYSQL_USER: test
+          MYSQL_PASSWORD: test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Wait for MySQL
+        run: |
+          while ! mysqladmin ping -h"127.0.0.1" -P"3306" -u"test" -p"test" --silent; do
+            sleep 1
+          done
+
+      - name: Run pytest
+        run: |
+          pytest tests/ -v --cov=. --cov-report=term-missing
+        env:
+          FLASK_ENV: testing
+          DB_HOST: 127.0.0.1
+          DB_NAME: test_db
+          DB_USER: test
+          DB_PASSWORD: test
+          DB_PORT: 3306
+          JWT_SECRET_KEY: test-secret-key
+          SECRET_KEY: test-secret-key
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            .coverage
+            htmlcov/
+
+  build-and-push:
+    name: Build and Push to ECR
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Generate image tags
+        id: meta
+        run: |
+          TIMESTAMP=$(date +%s)
+          SHORT_SHA=${GITHUB_SHA::8}
+          echo "IMAGE_TAG=${SHORT_SHA}-${TIMESTAMP}" >> $GITHUB_OUTPUT
+          echo "TIMESTAMP=${TIMESTAMP}" >> $GITHUB_OUTPUT
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.IMAGE_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ steps.meta.outputs.TIMESTAMP }}
+            VERSION=${{ steps.meta.outputs.IMAGE_TAG }}
+            GIT_COMMIT=${{ github.sha }}
+
+      - name: Image digest
+        run: echo "Image pushed with digest ${{ steps.build.outputs.digest }}"
+
+      - name: Summary
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Tests:** Passed" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Build:** Success" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **ECR Push:** Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Image Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry:** ${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Repository:** ${{ env.ECR_REPOSITORY }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** ${{ steps.meta.outputs.IMAGE_TAG }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Platform:** linux/amd64" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Go to ECS Console" >> $GITHUB_STEP_SUMMARY
+          echo "2. Update service \`flask-service\` in cluster \`flask-cluster\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. Check 'Force new deployment'" >> $GITHUB_STEP_SUMMARY
+          echo "4. Click 'Update'" >> $GITHUB_STEP_SUMMARY
+
+  notify-success:
+    name: Notify Success
+    needs: build-and-push
+    if: success()
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Success notification
+        run: |
+          echo "✅ Pipeline completed successfully!"
+          echo "Image is ready in ECR"
+          echo "Manual ECS service update required"
+
+  notify-failure:
+    name: Notify Failure
+    needs: [test, build-and-push]
+    if: failure()
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Failure notification
+        run: |
+          echo "❌ Pipeline failed!"
+          echo "Check the logs above for details"
